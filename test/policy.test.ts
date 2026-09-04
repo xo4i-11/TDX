@@ -47,12 +47,20 @@ test('every fill-set field produces a row with a status; nothing fails silently'
 
 test('the five fields are written with the right values', async () => {
   const { doc, resolution } = setup();
-  await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() }, { bridge });
+  // attribute789 (the hidden lookup id) is prefilled by the fixture's
+  // data-default blob, so with the default overwrite:false the service row
+  // would take the 'preserved' branch and never call fillLookup — proving
+  // nothing about the write path. overwrite:true forces the write so the
+  // visible input (which starts empty) can only read back SERVICE.text if
+  // fillLookup actually ran.
+  const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }) }, { bridge });
   assert.equal(inputEl(doc, 'attribute2445').value, 'duynghie');
   assert.match(inputEl(doc, 'attribute37').value, /eduroam/i);
   const source = selectEl(doc, 'attribute371');
   assert.equal(source.options[source.selectedIndex]?.textContent?.trim(), 'Walkup');
-  assert.equal(inputEl(doc, 'attribute789').value, '288');
+  assert.equal(row(rows, 'service')?.status, 'filled');
+  assert.equal(inputEl(doc, 'attribute789').value, SERVICE.id);
+  assert.equal(inputEl(doc, 'attribute789_input').value, SERVICE.text);
   assert.match(textareaEl(doc, 'attribute138_Content').value, /eduroam CAT/);
 });
 

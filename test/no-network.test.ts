@@ -1,4 +1,16 @@
-// Proves the whole parse-to-fill pipeline never touches the network, both at runtime and in the source.
+// Proves that, on the paths these two tests actually exercise, the extension makes no network request.
+/**
+ * What this file does NOT prove: the runtime trap is armed after all static
+ * ESM imports have already run, so a module that captures a network
+ * primitive at import time (e.g. `const f = globalThis.fetch`) is invisible
+ * to it, and the `navigator` trap replaces the whole object rather than the
+ * `sendBeacon` method, which is weaker still. The static scan is a RegExp
+ * over de-commented source text, so any bound reference or computed access
+ * (`globalThis['fe' + 'tch']`) walks straight through it. The real guarantee
+ * here is: post-import, on executed paths, in the scanned files only. That
+ * is reasonable defence-in-depth against accidental network code — the
+ * realistic threat for this project — not a whole-extension proof.
+ */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadFixture } from './helpers.ts';
@@ -72,7 +84,10 @@ test('no source file references a network primitive or an external URL', async (
   const { readdirSync, readFileSync, statSync } = await import('node:fs');
   const { join } = await import('node:path');
 
-  const files: string[] = [];
+  // manifest.json is a shipped MV3 asset, not TypeScript — a CDN asset,
+  // remote script, or over-broad host_permissions entry would live there,
+  // not under src/, so it must be scanned too.
+  const files: string[] = ['manifest.json'];
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
