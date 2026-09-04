@@ -2,15 +2,60 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
+import type { DOMWindow } from 'jsdom';
 import { waitFor } from '../src/adapters/wait.ts';
 
-/** jsdom's timer tracking is undocumented API used here only to sanity-check cleanup. */
-interface WindowWithIntervals {
-  __intervals?: Set<unknown>;
+interface Calls {
+  intervalsSet: number;
+  intervalsCleared: number;
+  timeoutsSet: number;
+  timeoutsCleared: number;
+  disconnects: number;
 }
 
-function intervalCount(win: object): number {
-  return (win as WindowWithIntervals).__intervals?.size ?? 0;
+/**
+ * jsdom keeps no public record of live timers or observers (an earlier
+ * version of this test read a private `__intervals` property that jsdom
+ * v25 never sets, so it always compared 0 to 0 and could not fail). This
+ * wraps one jsdom window's own timer/observer surface so cleanup can be
+ * checked directly: everything here still delegates to the real window, it
+ * just counts.
+ */
+function instrument(real: DOMWindow): { win: DOMWindow; calls: Calls } {
+  const calls: Calls = {
+    intervalsSet: 0, intervalsCleared: 0, timeoutsSet: 0, timeoutsCleared: 0, disconnects: 0,
+  };
+
+  const RealObserver = real.MutationObserver as { new (callback: MutationCallback): MutationObserver };
+  class TrackedObserver extends RealObserver {
+    disconnect(): void {
+      calls.disconnects += 1;
+      super.disconnect();
+    }
+  }
+
+  const setInterval: Window['setInterval'] = (handler, timeout) => {
+    calls.intervalsSet += 1;
+    return real.setInterval(handler, timeout);
+  };
+  const clearInterval: Window['clearInterval'] = (id) => {
+    calls.intervalsCleared += 1;
+    real.clearInterval(id);
+  };
+  const setTimeout: Window['setTimeout'] = (handler, timeout) => {
+    calls.timeoutsSet += 1;
+    return real.setTimeout(handler, timeout);
+  };
+  const clearTimeout: Window['clearTimeout'] = (id) => {
+    calls.timeoutsCleared += 1;
+    real.clearTimeout(id);
+  };
+
+  // A structural stand-in for DOMWindow: waitFor only ever touches these five
+  // members (see WaitWindow in wait.ts), so nothing else needs wrapping.
+  const win = { MutationObserver: TrackedObserver, setInterval, clearInterval, setTimeout, clearTimeout } as DOMWindow;
+
+  return { win, calls };
 }
 
 test('resolves immediately when the predicate is already true', async () => {
@@ -41,17 +86,29 @@ test('rejects on timeout rather than hanging', async () => {
   );
 });
 
-test('disconnects its observer and clears its poll on resolve', async () => {
+test('releases its observer and both timers exactly once when it resolves', async () => {
   const dom = new JSDOM('<div id="here"></div>');
-  const before = intervalCount(dom.window);
+  const { win, calls } = instrument(dom.window);
   await waitFor(() => dom.window.document.getElementById('here'), {
-    root: dom.window.document, win: dom.window,
+    root: dom.window.document, win,
   });
-  // No leak assertion is possible directly; this asserts the call completes
-  // and a second identical call still behaves, which fails if state leaked.
-  const again = await waitFor(() => dom.window.document.getElementById('here'), {
-    root: dom.window.document, win: dom.window,
-  });
-  assert.equal(again.id, 'here');
-  assert.equal(before, intervalCount(dom.window));
+  assert.equal(calls.intervalsSet, 1);
+  assert.equal(calls.intervalsCleared, 1, 'poll interval was never cleared');
+  assert.equal(calls.timeoutsSet, 1);
+  assert.equal(calls.timeoutsCleared, 1, 'timeout timer was never cleared');
+  assert.equal(calls.disconnects, 1, 'MutationObserver was never disconnected');
+});
+
+test('releases its observer and both timers exactly once when it times out', async () => {
+  const dom = new JSDOM('<div></div>');
+  const { win, calls } = instrument(dom.window);
+  await assert.rejects(
+    () => waitFor(() => null, { timeout: 60, root: dom.window.document, win }),
+    /timed out/i,
+  );
+  assert.equal(calls.intervalsSet, 1);
+  assert.equal(calls.intervalsCleared, 1, 'poll interval was never cleared');
+  assert.equal(calls.timeoutsSet, 1);
+  assert.equal(calls.timeoutsCleared, 1, 'timeout timer was never cleared');
+  assert.equal(calls.disconnects, 1, 'MutationObserver was never disconnected');
 });
