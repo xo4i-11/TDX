@@ -11,9 +11,9 @@ export function loadFixture(): Document {
 }
 
 /**
- * Returns the fixture with every TDX-specific semantic marker removed and
- * labels shuffled, simulating a form the engine has never seen. Tier 3 must
- * still resolve the fill set from labels and option values alone.
+ * Returns the fixture with every TDX-specific semantic marker removed,
+ * simulating a form the engine has never seen. Labels and option sets are left
+ * intact on purpose — they are exactly the signals tier 3 must resolve from.
  */
 export function loadUnknownFormFixture(): Document {
   const doc = loadFixture();
