@@ -125,15 +125,23 @@ export function createStores(area: StorageArea | undefined = defaultArea()): Sto
   };
 }
 
-/** chrome.storage-shaped object backed by a Map, for tests. */
+/**
+ * chrome.storage-shaped object backed by a Map, for tests.
+ *
+ * Real chrome.storage.local takes ownership of what it's given and hands
+ * back its own copy of what it holds — structured-cloning on both set and
+ * get. structuredClone on both sides matches that: without it, a caller
+ * could mutate a value it just read (or just wrote) and silently corrupt
+ * what's "stored", which real chrome.storage never allows.
+ */
 export function createMemoryArea(): StorageArea {
   const data = new Map<string, unknown>();
   return {
     async get(key) {
-      return data.has(key) ? { [key]: data.get(key) } : {};
+      return data.has(key) ? { [key]: structuredClone(data.get(key)) } : {};
     },
     async set(items) {
-      for (const [key, value] of Object.entries(items)) data.set(key, value);
+      for (const [key, value] of Object.entries(items)) data.set(key, structuredClone(value));
     },
   };
 }
