@@ -39,7 +39,9 @@ test('ACCEPTANCE: an unseen form resolves the fill set from labels and options a
     assert.equal(match.tier, 3);
     assert.ok(match.confidence > LOW_CONFIDENCE, `${key} confidence ${match.confidence}`);
   }
+  assert.equal(byField.get('ubitName')?.control.id, 'attribute2445');
   assert.equal(byField.get('briefSummary')?.control.id, 'attribute37');
+  assert.equal(byField.get('description')?.control.richtext?.instanceKey, 'attribute138_Content');
   assert.equal(byField.get('source')?.control.id, 'attribute371');
 });
 
