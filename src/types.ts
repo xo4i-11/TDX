@@ -142,3 +142,38 @@ export interface FillRow {
 export interface Bridge {
   setEditorData(instanceKey: string, html: string): Promise<{ ok: boolean; detail: string }>;
 }
+
+/** Saved issue templates, keyed by id. */
+export interface TemplateStore {
+  list(): Promise<Template[]>;
+  save(template: Template): Promise<Template>;
+  remove(id: string): Promise<void>;
+}
+
+/** Past confirmed tickets used to suggest a service. The technician supplies id and timestamp implicitly. */
+export interface ExampleStore {
+  list(): Promise<Example[]>;
+  add(example: Pick<Example, 'description' | 'service'>): Promise<Example>;
+  remove(id: string): Promise<void>;
+}
+
+/** Field-mapping corrections the technician made, keyed by form signature (Task 5) so a form edit invalidates them. */
+export interface LearnedStore {
+  get(signature: string): Promise<Record<string, string>>;
+  set(signature: string, mapping: Record<string, string>): Promise<void>;
+  clearAll(): Promise<void>;
+}
+
+/** The technician's preferences, defaulted and patchable without clobbering unrelated keys. */
+export interface SettingsStore {
+  get(): Promise<Settings>;
+  patch(partial: Partial<Settings>): Promise<void>;
+}
+
+/** The four persisted stores. No requestor store exists — requestor data lives in panel memory only. */
+export interface Stores {
+  templates: TemplateStore;
+  examples: ExampleStore;
+  learned: LearnedStore;
+  settings: SettingsStore;
+}
