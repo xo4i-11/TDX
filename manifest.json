@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "TDX Autofill",
+  "version": "0.1.0",
+  "description": "Semantic autofill for TeamDynamix ticket forms. All processing is local.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://ubuffalo.teamdynamix.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://ubuffalo.teamdynamix.com/*"],
+      "js": ["dist/bridge.js"],
+      "all_frames": true,
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://ubuffalo.teamdynamix.com/*"],
+      "js": ["dist/content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "tdx-autofill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Semantic autofill for TeamDynamix ticket forms",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "esbuild src/content/mount.ts --bundle --format=iife --outfile=dist/content.js && esbuild src/content/bridge-main.ts --bundle --format=iife --outfile=dist/bridge.js",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "docker:test": "docker compose run --rm dev npm run check",
+    "docker:build": "docker compose run --rm dev npm run build"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.0",
+    "jsdom": "^25.0.0",
+    "typescript": "^5.7.0"
+  }
+}

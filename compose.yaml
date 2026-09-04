@@ -1,0 +1,11 @@
+# One service that runs this project's tests and builds inside a pinned Node 24 image.
+services:
+  dev:
+    build: .
+    working_dir: /app
+    volumes:
+      # Source is bind-mounted so edits are picked up without a rebuild, and so a
+      # container build writes dist/ back to the host for Chrome to load.
+      - .:/app
+      # Keeps the image's node_modules; the host's may be built for another platform.
+      - /app/node_modules
