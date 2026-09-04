@@ -530,9 +530,9 @@ export function loadFixture(): Document {
 }
 
 /**
- * Returns the fixture with every TDX-specific semantic marker removed and
- * labels shuffled, simulating a form the engine has never seen. Tier 3 must
- * still resolve the fill set from labels and option values alone.
+ * Returns the fixture with every TDX-specific semantic marker removed,
+ * simulating a form the engine has never seen. Labels and option sets are left
+ * intact on purpose — they are exactly the signals tier 3 must resolve from.
  */
 export function loadUnknownFormFixture(): Document {
   const doc = loadFixture();
@@ -5619,8 +5619,9 @@ npm test
 
 The fixture in `test/fixtures/` is a real TDX form with the scripts stripped and
 the session token redacted. The most important test resolves the fill set from a
-copy of that fixture with every TDX marker removed and labels shuffled: if that
-passes, the engine works on forms it has never seen.
+copy of that fixture with every TDX marker removed: if that passes, the engine
+resolves from labels and option values alone, and works on forms it has never
+seen.
 
 `test/no-network.test.ts` replaces `fetch`, `XMLHttpRequest`, `WebSocket`,
 `EventSource`, and `sendBeacon` with landmines, runs a full parse-to-fill cycle,
