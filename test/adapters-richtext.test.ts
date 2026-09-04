@@ -110,6 +110,42 @@ test('readRichText reports current content for preserve checks', async () => {
   assert.match(readRichText(control), /stale eduroam profile/);
 });
 
+// harvest.ts's own group boundary is '.form-group, [data-fieldtype],
+// [data-fieldid]' — broader than a bare '.form-group' class check, precisely
+// because a field's immediate group can be marked only by data-fieldtype/
+// data-fieldid. A narrower selector in the adapter climbs past that group to
+// a shared ancestor and can land the write in a sibling field's editor.
+const SHARED_ANCESTOR_NO_FORM_GROUP_CLASS = `
+<div class="form-group">
+  <div class="cke"><iframe title="Rich Text Editor" data-owner="wrong-field"></iframe></div>
+  <div data-fieldtype="description" data-fieldid="138">
+    <label for="attribute138_Content">Description</label>
+    <textarea id="attribute138_Content" name="attribute138.Content" style="display:none"></textarea>
+    <div class="cke"><iframe title="Rich Text Editor" data-owner="right-field"></iframe></div>
+  </div>
+</div>`;
+
+test('does not climb past a data-fieldtype-only group into a sibling field\'s editor', async () => {
+  const control = richControl(SHARED_ANCESTOR_NO_FORM_GROUP_CLASS);
+  const result = await fillRichText(control, HTML, { bridge: absentBridge() });
+  assert.equal(result.status, 'filled');
+
+  const doc = control.el.ownerDocument;
+  const wrongIframe = doc.querySelector('iframe[data-owner="wrong-field"]') as HTMLIFrameElement;
+  const rightIframe = doc.querySelector('iframe[data-owner="right-field"]') as HTMLIFrameElement;
+
+  assert.match(
+    rightIframe.contentDocument?.body.innerHTML ?? '',
+    /stale eduroam profile/,
+    'the write must land in this field\'s own editor',
+  );
+  assert.doesNotMatch(
+    wrongIframe.contentDocument?.body.innerHTML ?? '',
+    /stale eduroam profile/,
+    'a sibling field\'s editor must not receive this field\'s value',
+  );
+});
+
 // --- createBridgeClient: the isolated-world half of the trust boundary. ---
 // jsdom does not deliver realistic `origin`/`source` on a same-window
 // postMessage round trip, so these tests drive the registered listener

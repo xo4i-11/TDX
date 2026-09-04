@@ -9,7 +9,12 @@
 import type { Control, ControlShape } from '../types.ts';
 
 const SKIP_TYPES = new Set(['hidden', 'submit', 'button', 'image', 'reset', 'file']);
-const GROUP_SELECTOR = '.form-group, [data-fieldtype], [data-fieldid]';
+
+// Exported so any other module that needs "the field's group boundary" (see
+// richtext.ts) uses this exact selector rather than a narrower copy that can
+// drift — a field whose group is marked only by data-fieldtype/data-fieldid
+// (no .form-group class) would otherwise resolve to the wrong ancestor.
+export const GROUP_SELECTOR = '.form-group, [data-fieldtype], [data-fieldid]';
 
 export function harvest(root: Document | Element): Control[] {
   const doc: Document = root.ownerDocument ?? (root as Document);

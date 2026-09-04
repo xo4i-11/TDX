@@ -12,6 +12,7 @@
  */
 
 import { setNativeValue } from './text.ts';
+import { GROUP_SELECTOR } from '../core/harvest.ts';
 import type { AdapterResult, Bridge, Control } from '../types.ts';
 
 // Keep this in sync with src/content/bridge-main.ts's own BRIDGE_CHANNEL —
@@ -200,12 +201,12 @@ function anchorElement(control: Control): Element {
 }
 
 function editorIframe(control: Control): HTMLIFrameElement | null {
-  const group = anchorElement(control).closest('.form-group');
+  const group = anchorElement(control).closest(GROUP_SELECTOR);
   return group?.querySelector<HTMLIFrameElement>('iframe') ?? null;
 }
 
 function contentEditableIn(control: Control): HTMLElement | null {
-  const group = anchorElement(control).closest('.form-group');
+  const group = anchorElement(control).closest(GROUP_SELECTOR);
   const nested = group?.querySelector<HTMLElement>('[contenteditable="true"]');
   if (nested) return nested;
   // The harvested control itself can be the editable element (no CKEditor
