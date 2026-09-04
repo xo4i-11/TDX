@@ -43,7 +43,7 @@ test('scores are normalised to 0..1 and ordered descending', () => {
 
 test('an unrelated description scores low rather than picking a winner confidently', () => {
   const ranked = retrieve('printer jammed in the copy room', CORPUS);
-  assert.ok(!ranked.length || (ranked[0] as { score: number }).score < 0.2, `expected a weak match, got ${ranked[0]?.score}`);
+  assert.ok(!ranked.length || (ranked[0]?.score ?? Number.POSITIVE_INFINITY) < 0.2, `expected a weak match, got ${ranked[0]?.score}`);
 });
 
 test('each result carries the prior examples and the terms that matched', () => {
