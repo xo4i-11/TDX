@@ -122,7 +122,6 @@ export interface Ranked {
 export interface Settings {
   threshold: number;
   overwrite: boolean;
-  diagnostics: boolean;
   collapsed?: boolean;
 }
 
@@ -157,7 +156,7 @@ export interface ExampleStore {
   remove(id: string): Promise<void>;
 }
 
-/** Field-mapping corrections the technician made, keyed by form signature (Task 5) so a form edit invalidates them. */
+/** Field-mapping corrections the technician made, keyed by form signature (src/core/signature.ts) so a form edit invalidates them. */
 export interface LearnedStore {
   get(signature: string): Promise<Record<string, string>>;
   set(signature: string, mapping: Record<string, string>): Promise<void>;

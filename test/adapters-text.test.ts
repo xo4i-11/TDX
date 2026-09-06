@@ -105,3 +105,20 @@ test('readValue reports the current text for both shapes', () => {
   fillSelect(select, 'Phone');
   assert.equal(readValue(select), 'Phone');
 });
+
+// The reachable caller is fill policy's `byKey('source')?.fixedValue ?? ''`.
+// With an empty string, startsWith('') matches every option, so the prefix arm
+// used to select the *first* option and report filled — writing whatever TDX
+// happens to list first into a routing field. Fixed in the adapter so every
+// caller fails loudly rather than each one guarding itself.
+test('fillSelect refuses an empty value instead of selecting the first option', () => {
+  const control = controlFor(SELECT, 's');
+  assert.ok(control);
+  const el = control.el as HTMLSelectElement;
+  el.selectedIndex = -1;
+
+  const result = fillSelect(control, '');
+  assert.equal(result.status, 'failed');
+  assert.match(result.detail, /no value to select/i);
+  assert.equal(el.selectedIndex, -1, 'nothing may be selected as a side effect');
+});

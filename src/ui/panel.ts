@@ -14,18 +14,13 @@ import { resolve } from '../core/resolve.ts';
 import { formSignature } from '../core/signature.ts';
 import { DICTIONARY } from '../core/dictionary.ts';
 import { parseRequestor } from '../data/parser.ts';
-import { SHIPPED_TEMPLATES } from '../data/templates.ts';
+import { EMPTY_REQUESTOR, SHIPPED_TEMPLATES } from '../data/templates.ts';
 import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
 } from '../types.ts';
-
-/** A requestor with every field explicitly null — the base a partial read from the page is merged onto. */
-const EMPTY_REQUESTOR: RequestorFields = {
-  name: null, email: null, personGuid: null, personNumber: null, ubitName: null, title: null, organization: null,
-};
 
 // SHIPPED_TEMPLATES always ships with a 'blank' entry — this only exists to
 // satisfy noUncheckedIndexedAccess on SHIPPED_TEMPLATES[0]; it is never
@@ -85,10 +80,23 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     showSettings: false,
   };
 
-  const controls = harvest(document);
+  let controls = harvest(document);
   const signature = formSignature(document);
   const learned = await stores.learned.get(signature);
   let resolution: Resolution = resolve(controls, { learned });
+
+  /**
+   * Re-reads the form. TDX is ASP.NET WebForms: an AutoPostBack select or a
+   * cascading Service -> Service Offering lookup replaces whole DOM subtrees,
+   * and the adapters themselves dispatch the change events that trigger those
+   * partial postbacks. After one, an element captured earlier is detached —
+   * writing it still "succeeds" and the read-back re-reads the same detached
+   * node, so the one silent failure read-back structurally cannot see.
+   */
+  async function rescan(): Promise<void> {
+    controls = harvest(document);
+    resolution = resolve(controls, { learned: await stores.learned.get(signature) });
+  }
 
   const host = document.createElement('div');
   host.id = 'tdx-autofill-host';
@@ -96,7 +104,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   const style = document.createElement('style');
   style.textContent = PANEL_CSS;
   shadow.append(style);
-  document.body.append(host);
 
   const panel = document.createElement('div');
   panel.className = 'panel';
@@ -365,6 +372,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     row.className = 'row';
 
     const fill = button('Fill form', async () => {
+      // Never fill through the resolution captured at mount — see rescan().
+      await rescan();
       const template = await selectedTemplate();
       const suggestion = await serviceSuggestion();
       const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
@@ -492,6 +501,12 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   }
   document.addEventListener('keydown', onEscape);
 
+  // Attached last, and only once there is something to show. Everything above
+  // is detached DOM construction plus the store reads that can reject (the
+  // extension-reloaded case): appending earlier would leave an empty
+  // #tdx-autofill-host on the page with no handle to destroy() it, and
+  // mount.ts's already-mounted guard would then match that corpse forever.
+  document.body.append(host);
   await render();
 
   return {

@@ -20,15 +20,16 @@ export interface RenderSettingsOptions {
   /**
    * Wraps a listener so a rejected store call surfaces as visible panel text
    * instead of a silent no-op plus a console-only unhandled rejection — see
-   * panel.ts's own `guarded`. Defaults to a plain passthrough so callers that
-   * don't care about that (existing tests) see no behaviour change.
+   * panel.ts's own `guarded`. Required, not defaulted: every listener below is
+   * async, so a passthrough default would silently drop the promise and
+   * reintroduce exactly the failure this parameter exists to close.
    */
-  guarded?: (action: () => void | Promise<void>) => () => void;
+  guarded: (action: () => void | Promise<void>) => () => void;
 }
 
 /** Builds the full settings view: threshold, templates, examples, learned mappings — freshly read from the stores. */
 export async function renderSettings({
-  doc, stores, onChange = () => {}, guarded = (action) => () => { action(); },
+  doc, stores, onChange = () => {}, guarded,
 }: RenderSettingsOptions): Promise<HTMLElement> {
   const wrap = doc.createElement('div');
 
@@ -167,8 +168,9 @@ function exampleRow(doc: Document, example: Example, onRemove: () => void): HTML
   const line = doc.createElement('div');
   line.className = 'row';
   const text = doc.createElement('span');
-  // Example.service is always present (Task 11) — a suggestion the
-  // technician never confirmed is never saved as an example in the first place.
+  // Example.service is always present (src/data/stores.ts's ExampleStore
+  // requires it) — a suggestion the technician never confirmed is never saved
+  // as an example in the first place.
   text.textContent = `${truncate(example.description)} → ${example.service.text}`;
   const remove = doc.createElement('button');
   remove.type = 'button';

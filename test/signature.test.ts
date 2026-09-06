@@ -42,3 +42,13 @@ test('a document with no markers still yields a stable string', () => {
   assert.equal(typeof sig, 'string');
   assert.ok(sig.length > 0);
 });
+
+// Without a fallback the signature of a marker-less form is just the parent
+// form id, so an administrator could add or remove fields without invalidating
+// a learned mapping — the opposite of what the README promises.
+test('a marker-less form still changes signature when a field is added or removed', () => {
+  const one = '<form><input name="ParentFormID" value="162"><input name="a"></form>';
+  const two = '<form><input name="ParentFormID" value="162"><input name="a"><input name="b"></form>';
+  assert.notEqual(formSignature(docFrom(one)), formSignature(docFrom(two)));
+  assert.equal(formSignature(docFrom(two)), formSignature(docFrom(two)), 'and is still stable');
+});

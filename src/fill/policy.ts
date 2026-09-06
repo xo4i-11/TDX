@@ -47,7 +47,8 @@ export function planFill({
 
   for (const fieldKey of FILL_SET) {
     const def = byKey(fieldKey);
-    // FILL_SET is authored against DICTIONARY (Task 3 tests both), so this
+    // FILL_SET is authored against DICTIONARY — both live in
+    // src/core/dictionary.ts, whose tests pin them to each other — so this
     // never fires outside a broken edit to one of those two arrays.
     if (!def) continue;
 
@@ -114,6 +115,15 @@ export async function executeFill(rows: FillRow[], ctx: ApplyContext = {}): Prom
     if (!row.control) {
       // planFill always sets a control on a write row; this only guards the type.
       done.push({ ...row, status: 'failed', detail: 'internal error: write row has no control' });
+      continue;
+    }
+    if (!row.control.el.isConnected) {
+      // The one silent failure read-back cannot catch: an ASP.NET partial
+      // postback (often triggered by an earlier adapter's own change event)
+      // swapped this control's subtree out. Writing the detached node would
+      // succeed and read back clean while the real form stays empty.
+      // isConnected is realm-safe, so no window reference is needed here.
+      done.push({ ...row, status: 'failed', detail: 'the control left the page since the form was scanned; rescan and retry' });
       continue;
     }
     const result = await applyValue(row.control, row.value, ctx);

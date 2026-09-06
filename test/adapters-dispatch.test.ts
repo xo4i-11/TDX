@@ -63,3 +63,22 @@ test('currentValue works for every shape the fixture contains', () => {
   assert.ok(richtext);
   assert.equal(typeof currentValue(richtext), 'string');
 });
+
+// The dispatcher takes `unknown` because the policy picks a value kind per
+// field while this routes per control shape; those can disagree on a form the
+// engine has not seen. A captured pair must not become the string
+// "[object Object]" in a text box, reported as filled.
+test('a captured {id,text} pair sent to a text control is refused, not stringified', async () => {
+  const control = byId('attribute2445');
+  const result = await applyValue(control, { id: '288', text: 'Personal Device Consultation' }, { bridge });
+  assert.equal(result.status, 'failed');
+  assert.match(result.detail, /needs a string/i);
+  assert.equal((control.el as HTMLInputElement).value, '', 'nothing may be written');
+});
+
+test('a plain string sent to a lookup is refused rather than half-writing the widget', async () => {
+  const control = byId('attribute789');
+  const result = await applyValue(control, 'Personal Device Consultation', { bridge });
+  assert.equal(result.status, 'failed');
+  assert.match(result.detail, /\{id,text\}/);
+});

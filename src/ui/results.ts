@@ -6,6 +6,7 @@
  * reason, and low-confidence matches are flagged even when they succeeded.
  */
 
+import { LOW_CONFIDENCE } from '../core/resolve.ts';
 import type { FillRow, FillStatus } from '../types.ts';
 
 type Tone = 'good' | 'warn' | 'bad' | 'mute';
@@ -23,8 +24,6 @@ export const STATUS_META: Record<FillStatus, StatusInfo> = {
   skipped: { icon: '–', tone: 'mute', order: 3 },
   filled: { icon: '✓', tone: 'good', order: 4 },
 };
-
-const LOW_CONFIDENCE = 0.6;
 
 /** One entry a correction dropdown can offer instead of the field a row was matched to. */
 export interface FieldOption {

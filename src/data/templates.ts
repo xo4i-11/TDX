@@ -16,7 +16,8 @@ const PLACEHOLDER = /\{\{\s*(\w+)\s*\}\}/g;
 /** requestorFields, plus the render-time-only `date` placeholder value. */
 type SubstituteValues = Record<string, string | null | undefined>;
 
-const EMPTY_REQUESTOR: RequestorFields = {
+/** A requestor with every field explicitly null — the base a partial read is merged onto. Lives here so panel.ts can share it rather than keep a second copy. */
+export const EMPTY_REQUESTOR: RequestorFields = {
   name: null,
   email: null,
   personGuid: null,

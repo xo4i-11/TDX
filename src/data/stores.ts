@@ -5,12 +5,12 @@
  * servers, which the design forbids.
  *
  * There is deliberately no requestor store. Requestor fields include student
- * records; they live in panel memory (Task 15) and die with the page.
+ * records; they live in panel memory (src/ui/panel.ts) and die with the page.
  */
 
 import type { Example, LearnedStore, Settings, SettingsStore, Stores, Template } from '../types.ts';
 
-export const DEFAULT_SETTINGS: Settings = { threshold: 0.35, overwrite: false, diagnostics: false };
+export const DEFAULT_SETTINGS: Settings = { threshold: 0.35, overwrite: false };
 
 const KEYS = {
   templates: 'tdxa.templates',

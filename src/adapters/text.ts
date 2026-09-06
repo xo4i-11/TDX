@@ -1,7 +1,7 @@
 // Writes values into plain inputs, textareas, and native selects, verifying every write by reading it back.
 /**
  * Knows nothing about which field it is filling. Field identity, fixed values,
- * and preserve-versus-overwrite all live in fill policy (Task 14); this file
+ * and preserve-versus-overwrite all live in fill policy (src/fill/policy.ts); this file
  * only knows how to put a string into a control and prove it stuck.
  */
 
@@ -61,6 +61,10 @@ export function fillText(control: Control, value: string): AdapterResult {
 export function fillSelect(control: Control, value: string): AdapterResult {
   const el = control.el as HTMLSelectElement;
   const wanted = value.toLowerCase();
+  // Without this, startsWith('') matches every option and the prefix arm below
+  // silently selects the *first* one, reporting `filled` for a routing field
+  // nobody chose. A caller with nothing to write must hear about it.
+  if (!wanted) return { status: 'failed', detail: 'no value to select' };
   const options = [...el.options];
 
   // ponytail: exact match, then prefix match. No fuzzy/Levenshtein matching —

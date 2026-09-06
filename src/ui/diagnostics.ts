@@ -9,15 +9,17 @@
  * Trust boundary: this dump is built to be pasted somewhere off this machine,
  * so it may only carry form structure and resolver reasoning (control labels,
  * markers, shapes, scores, the form signature) — never a filled or requestor
- * value. `Resolution.diagnostics` never holds one, so this file simply never
- * reads a `FillRow.value` or a `RequestorFields` — there is nothing here to
- * accidentally leak.
+ * value. Two things make that true, and only those two: `Resolution.diagnostics`
+ * never holds a value, so this file never reads a `FillRow.value` or a
+ * `RequestorFields`; and the page URL is printed with its query string cut off,
+ * because a TDX ticket-form URL carries `RequestorUID=<person GUID>` — the one
+ * identifier this project refuses to persist anywhere at all.
  */
 
 import type { Resolution } from '../types.ts';
 
 export interface DiagnosticsOptions {
-  /** The form signature (Task 5), so a learned mapping can be traced back to the dump. */
+  /** The form signature (src/core/signature.ts), so a learned mapping can be traced back to the dump. */
   signature?: string;
   /** The page URL, included only when the caller has one worth recording. */
   url?: string;
@@ -29,7 +31,9 @@ export function formatDiagnostics(resolution: Resolution, { signature = '', url 
     'TDX Autofill — resolution diagnostics',
     `form signature: ${signature}`,
   ];
-  if (url) lines.push(`page: ${url}`);
+  // Path only. The query string is where TDX puts RequestorUID (the requestor's
+  // person GUID), and this text is built to be pasted into a ticket or a chat.
+  if (url) lines.push(`page: ${url.split('?')[0] ?? ''}`);
   lines.push(`controls harvested: ${resolution.diagnostics.length}`);
   lines.push(`fields resolved: ${resolution.byField.size}`);
   lines.push('');

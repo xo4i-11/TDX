@@ -436,3 +436,48 @@ test('correcting a mapping in the results panel is learned and immediately re-re
   const dump = must($('pre.diagnostics'), 'diagnostics dump must render').textContent ?? '';
   assert.match(dump, /learned from a previous correction on this form/);
 });
+
+// TDX is ASP.NET WebForms: an AutoPostBack select or a cascading Service ->
+// Service Offering lookup replaces whole DOM subtrees, and the adapters
+// themselves dispatch the change events that trigger those partial postbacks.
+// If Fill reused the resolution captured at mount, it would write into the
+// detached node it still held, read that same node back, and report "filled"
+// for a value that is not on the form — the one silent failure the read-back
+// discipline cannot see.
+test('a fill after the form was re-rendered writes into the live control, not the detached one it was holding', async () => {
+  const { $, doc } = await open();
+  const view = doc.defaultView;
+  assert.ok(view);
+  const paste = $('textarea[name="paste"]');
+  assert.ok(paste instanceof view.HTMLTextAreaElement);
+  paste.value = BLOCK;
+  click(must($('button[data-parse]'), 'parse button missing'), doc);
+  await settle();
+
+  // Exactly what a partial postback does: same markup, brand new element.
+  const before = doc.getElementById('attribute2445');
+  assert.ok(before instanceof view.HTMLInputElement, 'UBITName field missing on the fixture');
+  before.replaceWith(before.cloneNode(true));
+  assert.equal(before.isConnected, false, 'baseline: the mount-time element is detached');
+
+  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  await settle();
+
+  const after = doc.getElementById('attribute2445');
+  assert.ok(after instanceof view.HTMLInputElement);
+  assert.equal(after.value, 'duynghie', 'the control actually on the page must carry the value');
+  assert.equal(before.value, '', 'the detached element must not have been written instead');
+});
+
+// If the host is appended before the store reads that can reject, a failed
+// mount leaves an empty #tdx-autofill-host on the page with no handle to
+// destroy() it — and mount.ts's already-mounted guard then matches that corpse,
+// so every later retry declines.
+test('a mount that fails partway leaves no orphan host element on the page', async () => {
+  const doc = loadFixture();
+  const stores = createStores(createMemoryArea());
+  stores.settings.get = async () => { throw new Error('Extension context invalidated.'); };
+
+  await assert.rejects(createPanel({ doc, stores, bridge }), /Extension context invalidated/);
+  assert.equal(doc.getElementById('tdx-autofill-host'), null, 'a failed mount must not leave a host behind');
+});

@@ -6,11 +6,21 @@ import { createStores, createMemoryArea, type StorageArea } from '../src/data/st
 import { renderSettings } from '../src/ui/settings.ts';
 import type { Stores } from '../src/types.ts';
 
+/**
+ * The honest test wrapper: rethrow. `guarded` is required precisely because a
+ * passthrough that drops the returned promise turns a rejected store write
+ * into a silent no-op — so in tests a rejection must escape and fail the run,
+ * never be swallowed.
+ */
+const rethrowing = (action: () => void | Promise<void>) => (): void => {
+  void Promise.resolve().then(action).catch((error: unknown) => { throw error; });
+};
+
 const setup = async (seed?: (stores: Stores) => Promise<void>) => {
   const doc = new JSDOM('<body></body>').window.document;
   const stores = createStores(createMemoryArea());
   await seed?.(stores);
-  const el = await renderSettings({ doc, stores });
+  const el = await renderSettings({ doc, stores, guarded: rethrowing });
   return { doc, stores, el };
 };
 
@@ -113,7 +123,7 @@ test('a store write from one rendered view is visible to a fresh view over the s
   const area: StorageArea = createMemoryArea();
   const storesA = createStores(area);
   const docA = new JSDOM('<body></body>').window.document;
-  const elA = await renderSettings({ doc: docA, stores: storesA });
+  const elA = await renderSettings({ doc: docA, stores: storesA, guarded: rethrowing });
   const winA = docA.defaultView;
   assert.ok(winA);
   const inputA = elA.querySelector('input[name="threshold"]');

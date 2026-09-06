@@ -8,18 +8,15 @@
  * anything — the bare textarea. Each path verifies its own result: reporting
  * "filled" for a value that did not land would put an empty field in the
  * queue with nothing to notice it by. This file knows nothing about which
- * canonical field it serves — that lives in fill policy (Task 14).
+ * canonical field it serves — that lives in fill policy (src/fill/policy.ts).
  */
 
+import { BRIDGE_CHANNEL } from '../content/bridge-channel.ts';
 import { setNativeValue } from './text.ts';
 import { GROUP_SELECTOR } from '../core/harvest.ts';
 import type { AdapterResult, Bridge, Control } from '../types.ts';
 
-// Keep this in sync with src/content/bridge-main.ts's own BRIDGE_CHANNEL —
-// the two files can't share an import (they're bundled as separate MV3
-// worlds), so the literal is duplicated deliberately rather than wired
-// together for a single never-changing string.
-export const BRIDGE_CHANNEL = 'tdxa';
+export { BRIDGE_CHANNEL };
 
 const DEFAULT_BRIDGE_TIMEOUT = 3000;
 

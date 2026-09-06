@@ -90,3 +90,19 @@ test('renderDiagnostics produces a pre plus a working copy button', async () => 
   await new Promise((r) => setImmediate(r));
   assert.deepEqual(copied, ['hello diagnostics']);
 });
+
+// The dump is built to be pasted into a ticket, a chat, or an issue. A TDX
+// ticket-form URL carries RequestorUID=<person GUID> — the one identifier this
+// project refuses to persist anywhere — so the query string must never survive
+// into the text. jsdom fixtures load at about:blank, so the URL is passed in
+// explicitly here; that is exactly why nothing caught this before.
+test('the page URL is stripped to its path, so the requestor GUID in RequestorUID cannot ride along', () => {
+  const doc = loadFixture();
+  const guid = 'b067308b-2198-ef11-9c36-f06ebc4e4310';
+  const url = `https://ubuffalo.teamdynamix.com/TDNext/Apps/40/Tickets/New?TicketFormID=162&RequestorUID=${guid}&U=abc`;
+  const text = formatDiagnostics(resolve(harvest(doc)), { signature: formSignature(doc), url });
+
+  assert.ok(!text.includes(guid), 'the requestor person GUID must not appear in the dump');
+  assert.ok(!text.includes('RequestorUID'), 'the query string must not appear in the dump');
+  assert.match(text, /^page: https:\/\/ubuffalo\.teamdynamix\.com\/TDNext\/Apps\/40\/Tickets\/New$/m, 'the path is still recorded');
+});

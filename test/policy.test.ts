@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { loadFixture } from './helpers.ts';
 import { harvest } from '../src/core/harvest.ts';
 import { resolve } from '../src/core/resolve.ts';
-import { runFill, planFill } from '../src/fill/policy.ts';
+import { runFill, planFill, executeFill } from '../src/fill/policy.ts';
 import { SHIPPED_TEMPLATES } from '../src/data/templates.ts';
 import type { Bridge, Captured, FillRow, RequestorFields, Settings } from '../src/types.ts';
 
@@ -28,7 +28,7 @@ const setup = (doc: Document = loadFixture()) => {
 };
 
 const row = (rows: FillRow[], key: string): FillRow | undefined => rows.find((r) => r.fieldKey === key);
-const settings = (over: Partial<Settings> = {}): Settings => ({ threshold: 0.35, overwrite: false, diagnostics: false, ...over });
+const settings = (over: Partial<Settings> = {}): Settings => ({ threshold: 0.35, overwrite: false, ...over });
 
 const inputEl = (doc: Document, id: string): HTMLInputElement => doc.getElementById(id) as HTMLInputElement;
 const selectEl = (doc: Document, id: string): HTMLSelectElement => doc.getElementById(id) as HTMLSelectElement;
@@ -154,4 +154,26 @@ test('an adapter failure surfaces as failed with the mismatch, not as success', 
   const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() }, { bridge });
   assert.equal(row(rows, 'ubitName')?.status, 'failed');
   assert.match(row(rows, 'ubitName')?.detail ?? '', /read back/i);
+});
+
+// TDX is ASP.NET WebForms: an AutoPostBack select or a cascading lookup
+// replaces whole DOM subtrees, and the adapters themselves dispatch the change
+// events that trigger those partial postbacks. Writing the detached node the
+// plan is still holding succeeds, and the read-back re-reads that same
+// detached node — the one silent failure read-back structurally cannot see.
+test('a write row whose control left the page is refused, not written and reported filled', async () => {
+  const { doc, resolution } = setup();
+  const rows = planFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }) });
+  const ubit = row(rows, 'ubitName');
+  assert.ok(ubit?.control, 'ubitName must be a write row with a control');
+
+  // Exactly what a partial postback does to the element the plan is holding.
+  ubit.control.el.remove();
+
+  const done = await executeFill(rows, { bridge });
+  const after = row(done, 'ubitName');
+  assert.ok(after);
+  assert.equal(after.status, 'failed', 'a detached control must never report filled');
+  assert.match(after.detail, /left the page/i);
+  assert.equal(doc.getElementById('attribute2445'), null, 'baseline: the control really is off the page');
 });

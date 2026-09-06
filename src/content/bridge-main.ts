@@ -15,11 +15,9 @@
  * incoming message is checked before anything happens with it.
  */
 
-// Keep this in sync with src/adapters/richtext.ts's own BRIDGE_CHANNEL — the
-// two files can't share an import (they're bundled as separate MV3 worlds),
-// so the literal is duplicated deliberately rather than wired together for a
-// single never-changing string.
-export const BRIDGE_CHANNEL = 'tdxa';
+import { BRIDGE_CHANNEL } from './bridge-channel.ts';
+
+export { BRIDGE_CHANNEL };
 
 interface SetEditorDataRequest {
   id: number;

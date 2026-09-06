@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { harvest } from '../src/core/harvest.ts';
+import { LOW_CONFIDENCE } from '../src/core/resolve.ts';
 import { renderResults, highlightFilled, STATUS_META, type FieldOption } from '../src/ui/results.ts';
 import type { Control, FillRow, FillStatus } from '../src/types.ts';
 
@@ -120,4 +121,20 @@ test('highlightFilled injects its stylesheet once, not once per fill', () => {
   highlightFilled(rows(doc), doc);
   highlightFilled(rows(doc), doc);
   assert.equal(doc.querySelectorAll('style[data-tdxa-highlight]').length, 1);
+});
+
+// The flag's whole purpose is "don't read a tick as trust it", so the threshold
+// it uses must be the resolver's own LOW_CONFIDENCE, not a second copy that
+// stops agreeing the moment the tier ceilings are retuned.
+test('the low-confidence flag is driven by the resolver LOW_CONFIDENCE, not a private copy', () => {
+  const doc = dom();
+  const toneAt = (confidence: number): string | null => {
+    const el = renderResults(
+      [{ fieldKey: 'location', label: 'Location', action: 'write', value: '139', status: 'filled', detail: '', control: controlFor(doc, 'a'), confidence }],
+      { doc },
+    );
+    return el.querySelector('.result')?.getAttribute('data-tone') ?? null;
+  };
+  assert.equal(toneAt(LOW_CONFIDENCE), 'warn', 'at the threshold a filled row is still flagged');
+  assert.equal(toneAt(LOW_CONFIDENCE + 0.01), 'good', 'just above it, it is not');
 });
