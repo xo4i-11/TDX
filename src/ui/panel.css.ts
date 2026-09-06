@@ -48,6 +48,7 @@ button:hover { background: #3a3630; }
 button.primary { background: #f0a71c; border-color: #f0a71c; color: #1c1b1a; }
 button.primary:hover { background: #ffbb3d; }
 .row { display: flex; gap: 6px; }
+.row > span { flex: 1; }
 
 /* Focus must be obvious: this panel is used at a walk-up desk, often by keyboard. */
 :focus-visible { outline: 2px solid #f0a71c; outline-offset: 2px; }
