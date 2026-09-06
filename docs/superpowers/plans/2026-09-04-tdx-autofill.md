@@ -6,7 +6,7 @@
 
 **Architecture:** A content script mounts a shadow-DOM panel in whichever frame contains the ticket form. A four-tier resolver maps DOM controls to canonical fields using TDX's own `data-fieldtype`/`data-fieldid` markers first and label/option-set scoring as the portable fallback. Shape-specific adapters perform the writes through native prototype setters and verify by reading back. A page-world bridge exists solely to reach `window.CKEDITOR` for the description field.
 
-**Tech Stack:** Vanilla ES modules, no runtime dependencies. `esbuild` for bundling (MV3 content scripts cannot be ES modules). `node:test` + `jsdom` for tests. Node 20+.
+**Tech Stack:** TypeScript, no runtime dependencies. `esbuild` for bundling (MV3 content scripts cannot be ES modules; esbuild compiles TS natively). `tsc --noEmit` for type checking. `node:test` + `jsdom` for tests, run directly on `.ts` files via Node 24's native type stripping — no ts-node, no tsx, no loader. Docker pins the toolchain so build and test behave identically on any machine. Node 24 LTS.
 
 **Spec:** `docs/superpowers/specs/2026-09-04-tdx-autofill-design.md`
 
@@ -23,11 +23,90 @@ Every task's requirements implicitly include this section.
 - **Every adapter returns `{status, detail}`** where `status` is one of `filled | preserved | skipped | failed | needs-confirm`. Never a bare boolean. Never a silent success.
 - **Every `filled` is backed by a read-back verification.** Write, then read the control, then compare. Mismatch returns `failed` with expected and actual.
 - **Adapters contain no field-specific logic.** They take `(control, value)` and know nothing about which canonical field they serve.
-- **No selector strings in fill or adapter logic.** `src/core/dictionary.js` is the only place field identity is defined.
+- **No selector strings in fill or adapter logic.** `src/core/dictionary.ts` is the only place field identity is defined.
 - **No fixed `setTimeout` sleeps.** Waiting goes through `waitFor(predicate, {timeout})`.
 - **Requestor data is never persisted.** It lives in panel memory only.
 - **Comments explain the non-obvious why, not the obvious what.**
 - Permissions are exactly `["storage"]` plus host permission `https://ubuffalo.teamdynamix.com/*`. Nothing else.
+- **TypeScript, strict, no `any`.** `npm run typecheck` passes before every commit. Shared types come from `src/types.ts`. See the Amendment section below for the full rules.
+- **Every source file opens with one plain-English sentence** saying what it does in simple words.
+- **Ponytail:** the laziest solution that works. No speculative abstraction, no dependency for what a few lines do, shortest working diff.
+
+## Amendment (2026-09-04): TypeScript, Docker, and two authoring rules
+
+Agreed with the project owner after the plan was written. These override the
+plan body wherever they conflict, and bind every task.
+
+### 1. TypeScript, not JavaScript
+
+**Every file under `src/`, `test/`, and `scripts/` is `.ts`.** The code blocks in
+the tasks below are written as JavaScript: **their logic is normative, their
+syntax is not.** Transcribe each one to TypeScript — add parameter and return
+types, import shared types from `src/types.ts`, keep the logic and the comments
+exactly as written.
+
+Rules that keep this cheap:
+
+- **Node 24 strips types natively.** Tests run as `node --test "test/**/*.test.ts"`
+  with no loader and no build step. Nothing compiles before a test runs.
+- **Type stripping does not type-check.** `npm run typecheck` (`tsc --noEmit`) is
+  a separate gate and must pass before every commit.
+- **`erasableSyntaxOnly` is on**, because type stripping cannot handle syntax that
+  emits code. No `enum`, no `namespace`, no parameter properties, no
+  `declare` merging. Use union-of-string-literals instead of `enum`.
+- **Relative imports carry the `.ts` extension** (`import { x } from './y.ts'`).
+  Required by both Node's stripper and `allowImportingTsExtensions`.
+- **Use `import type` for type-only imports** (`verbatimModuleSyntax` is on).
+- Types describe boundaries, not internals. Do not add a type alias used once, or
+  a generic with one instantiation — that is the abstraction ponytail forbids,
+  wearing a type annotation.
+- **`strict` and `noUncheckedIndexedAccess` are on**, and DOM APIs return nullable
+  types the plan's JavaScript ignores. `el.textContent` is `string | null`;
+  `querySelector` returns `Element | null`; `arr[0]` is `T | undefined`. Handle
+  these with `?? ''`, an early return, or a narrowing check — **never with `any`,
+  and never by loosening tsconfig.** A non-null assertion (`!`) is acceptable only
+  where the fixture or the DOM contract guarantees presence, and it gets a short
+  comment saying why.
+- Cast DOM query results to the concrete element type you need
+  (`doc.querySelector('#x') as HTMLInputElement | null`) rather than widening the
+  variable's type.
+
+`src/types.ts` is created in Task 1 and is the single home for every shape more
+than one module touches. Each task's **Interfaces** block names the types it
+consumes and produces; those names come from `src/types.ts` verbatim.
+
+### 2. Docker pins the toolchain
+
+Docker cannot ship the extension — a Chrome extension is loaded into the
+technician's own browser from `dist/`, not run in a container. What Docker does
+here is make **build and test reproducible on any machine**: same Node, same
+dependency tree, no "works on mine".
+
+Task 1 adds a `Dockerfile` and a `compose.yaml` with one service, plus
+`npm run docker:test` and `npm run docker:build`. `dist/` is bind-mounted back to
+the host so a container build produces an extension the host's Chrome can load.
+Running `npm test` on the host stays supported and is the fast path.
+
+### 3. Every file opens with one plain-English sentence
+
+Before any other comment, each source file starts with a single sentence saying
+what the file does in simple words, for someone who has never seen this codebase.
+Not a restatement of the filename. For example:
+
+```ts
+// Turns a block of text copied out of TDX into the requestor's name, email, and IDs.
+```
+
+The longer `/** ... */` block explaining the non-obvious *why* still follows where
+the plan specifies one.
+
+### 4. Ponytail
+
+Build the laziest thing that works. Standard library and native platform features
+before dependencies. No interface with one implementation, no factory for one
+product, no config for a value that never changes, no scaffolding for later.
+Shortest working diff. A deliberate shortcut with a known ceiling gets a
+`ponytail:` comment naming the ceiling and the upgrade path.
 
 ## Deviation from the spec
 
@@ -38,30 +117,35 @@ The spec's section 10 lists 21 source modules and section 11 points `content_scr
 | File | Responsibility |
 |---|---|
 | `manifest.json` | MV3 declaration, two content scripts, two permissions |
-| `package.json` | Scripts, `esbuild` + `jsdom` devDependencies |
-| `src/core/dictionary.js` | Canonical field definitions. The only place field identity lives |
-| `src/core/harvest.js` | Enumerate DOM controls and gather every identifying signal |
-| `src/core/resolve.js` | Four-tier scoring and globally-best-match assignment |
-| `src/core/signature.js` | Stable form-signature hash for the learning store |
-| `src/adapters/wait.js` | `waitFor(predicate, {timeout})` on MutationObserver + poll |
-| `src/adapters/text.js` | Native-setter writes for inputs, textareas, native selects |
-| `src/adapters/lookup.js` | Captured `{id,text}` write and capture read-back |
-| `src/adapters/richtext.js` | CKEditor via bridge, with verified fallbacks |
-| `src/adapters/index.js` | Shape → adapter dispatch |
-| `src/content/bridge-main.js` | Page-world script. Reaches `window.CKEDITOR` only |
-| `src/content/mount.js` | Frame self-test, panel mount |
-| `src/data/parser.js` | Requestor block → `{fields, warnings}` |
-| `src/data/stores.js` | Four stores over `chrome.storage.local` |
-| `src/data/templates.js` | Three shipped templates plus blank, placeholder substitution |
-| `src/service/retriever.js` | TF-IDF cosine retrieval behind a swappable interface |
-| `src/fill/policy.js` | Value and write decisions. The only field-aware layer |
-| `src/ui/panel.css.js` | Stylesheet, exported as a string for the shadow root |
-| `src/ui/panel.js` | Shadow-root panel shell and state |
-| `src/ui/results.js` | Per-field outcome rows and the correction control |
-| `src/ui/diagnostics.js` | Copy-pasteable resolution dump |
-| `src/ui/settings.js` | Templates, threshold, clear learned |
+| `package.json` | Scripts and devDependencies (`typescript`, `esbuild`, `jsdom`, types) |
+| `tsconfig.json` | Strict, `noEmit`, `erasableSyntaxOnly` so Node can strip types directly |
+| `Dockerfile`, `compose.yaml` | Pin Node 24 and the dependency tree so build and test are reproducible |
+| `scripts/make-fixture.ts` | Reduces a saved TDX page to the checked-in fixture |
+| `src/types.ts` | Every data shape that crosses a module boundary |
+| `src/core/dictionary.ts` | Canonical field definitions. The only place field identity lives |
+| `src/core/harvest.ts` | Enumerate DOM controls and gather every identifying signal |
+| `src/core/resolve.ts` | Four-tier scoring and globally-best-match assignment |
+| `src/core/signature.ts` | Stable form-signature hash for the learning store |
+| `src/adapters/wait.ts` | `waitFor(predicate, {timeout})` on MutationObserver + poll |
+| `src/adapters/text.ts` | Native-setter writes for inputs, textareas, native selects |
+| `src/adapters/lookup.ts` | Captured `{id,text}` write and capture read-back |
+| `src/adapters/richtext.ts` | CKEditor via bridge, with verified fallbacks |
+| `src/adapters/index.ts` | Shape → adapter dispatch |
+| `src/content/bridge-main.ts` | Page-world script. Reaches `window.CKEDITOR` only |
+| `src/content/mount.ts` | Frame self-test, panel mount |
+| `src/data/parser.ts` | Requestor block → `{fields, warnings}` |
+| `src/data/stores.ts` | Four stores over `chrome.storage.local` |
+| `src/data/templates.ts` | Three shipped templates plus blank, placeholder substitution |
+| `src/service/retriever.ts` | TF-IDF cosine retrieval behind a swappable interface |
+| `src/fill/policy.ts` | Value and write decisions. The only field-aware layer |
+| `src/ui/panel.css.ts` | Stylesheet, exported as a string for the shadow root |
+| `src/ui/panel.ts` | Shadow-root panel shell and state |
+| `src/ui/results.ts` | Per-field outcome rows and the correction control |
+| `src/ui/diagnostics.ts` | Copy-pasteable resolution dump |
+| `src/ui/settings.ts` | Templates, threshold, clear learned |
+| `test/helpers.ts` | Loads the fixture, and a marker-stripped copy of it |
 | `test/fixtures/tdx-form-162.html` | Reduced real form, checked in |
-| `test/*.test.js` | One file per module under test |
+| `test/*.test.ts` | One file per module under test |
 
 ---
 
@@ -70,13 +154,13 @@ The spec's section 10 lists 21 source modules and section 11 points `content_scr
 Everything downstream tests against real TDX markup, so the fixture comes first.
 
 **Files:**
-- Create: `package.json`, `.gitignore`, `manifest.json`, `scripts/make-fixture.mjs`
-- Create: `test/fixtures/tdx-form-162.html` (generated, checked in)
-- Test: `test/fixture.test.js`
+- Create: `package.json`, `tsconfig.json`, `.gitignore`, `.dockerignore`, `manifest.json`, `Dockerfile`, `compose.yaml`, `scripts/make-fixture.ts`, `src/types.ts`
+- Keep: `test/fixtures/tdx-form-162.html` (already generated and verified — see Step 3)
+- Test: `test/fixture.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `test/fixtures/tdx-form-162.html`, and the convention that every test loads it via `loadFixture()` from `test/helpers.js` returning a jsdom `Document`.
+- Produces: `test/fixtures/tdx-form-162.html`; the convention that every test loads it via `loadFixture()` from `test/helpers.ts` returning a jsdom `Document`; and `src/types.ts`, the single home for every shared type.
 
 - [ ] **Step 1: Create `package.json`**
 
@@ -87,44 +171,304 @@ Everything downstream tests against real TDX markup, so the fixture comes first.
   "private": true,
   "type": "module",
   "description": "Semantic autofill for TeamDynamix ticket forms",
+  "engines": { "node": ">=24" },
   "scripts": {
-    "build": "esbuild src/content/mount.js --bundle --format=iife --outfile=dist/content.js && esbuild src/content/bridge-main.js --bundle --format=iife --outfile=dist/bridge.js",
-    "test": "node --test test/"
+    "build": "esbuild src/content/mount.ts --bundle --format=iife --outfile=dist/content.js && esbuild src/content/bridge-main.ts --bundle --format=iife --outfile=dist/bridge.js",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm test",
+    "docker:test": "docker compose run --rm dev npm run check",
+    "docker:build": "docker compose run --rm dev npm run build"
   },
   "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.10.0",
     "esbuild": "^0.24.0",
-    "jsdom": "^25.0.0"
+    "jsdom": "^25.0.0",
+    "typescript": "^5.7.0"
   }
 }
 ```
 
 Run: `npm install`
 
-- [ ] **Step 2: Create `.gitignore`**
+- [ ] **Step 2: Create `tsconfig.json`**
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "test", "scripts"]
+}
+```
+
+`erasableSyntaxOnly` is what keeps `node --test` able to run `.ts` directly:
+Node strips types, it does not compile them, so any TypeScript syntax that would
+emit code (`enum`, `namespace`, parameter properties) must be rejected at
+type-check time rather than crashing at run time.
+
+- [ ] **Step 3: Create `.gitignore` and `.dockerignore`**
+
+`.gitignore`:
 
 ```
 node_modules/
 dist/
 *.log
+.superpowers/
 ```
 
-- [ ] **Step 3: Write the fixture generator**
+`.dockerignore`:
+
+```
+node_modules
+dist
+.git
+.superpowers
+docs
+```
+
+- [ ] **Step 4: Create the Docker toolchain**
+
+Docker cannot run the extension — Chrome loads it from `dist/` on the
+technician's own machine. What it pins is the build and the tests, so they behave
+the same everywhere.
+
+`Dockerfile`:
+
+```dockerfile
+# Pins Node and the dependency tree so tests and builds behave the same on any machine.
+FROM node:24-alpine
+
+WORKDIR /app
+
+# Dependencies are their own layer: source edits do not trigger a reinstall.
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+CMD ["npm", "run", "check"]
+```
+
+`compose.yaml`:
+
+```yaml
+# One service that runs this project's tests and builds inside a pinned Node 24 image.
+services:
+  dev:
+    build: .
+    working_dir: /app
+    volumes:
+      # Source is bind-mounted so edits are picked up without a rebuild, and so a
+      # container build writes dist/ back to the host for Chrome to load.
+      - .:/app
+      # Keeps the image's node_modules; the host's may be built for another platform.
+      - /app/node_modules
+```
+
+Verify both work:
+
+```bash
+npm run docker:test
+```
+
+Expected: the image builds and the type check plus test suite run inside it.
+If Docker is unavailable on this machine, note it in the report and move on —
+the host `npm run check` path is the one the rest of the plan depends on.
+
+- [ ] **Step 4b: Create `src/types.ts`**
+
+Every shape that crosses a module boundary lives here, so sixteen later tasks
+cannot each invent a different name for the same thing. Types used inside one
+module stay in that module.
+
+```ts
+// The shared vocabulary: every data shape that more than one part of the extension passes around.
+
+/** How a control must be written, which decides the adapter that handles it. */
+export type ControlShape = 'text' | 'select' | 'select2' | 'lookup' | 'richtext';
+
+/** What a canonical field expects its control to be. Narrower than ControlShape. */
+export type ControlKind = 'text' | 'select' | 'lookup' | 'richtext';
+
+/** The outcome of trying to write one field. Never a bare boolean. */
+export type FillStatus = 'filled' | 'preserved' | 'skipped' | 'failed' | 'needs-confirm';
+
+/** What every adapter returns: what happened, and why in one short phrase. */
+export interface AdapterResult {
+  status: FillStatus;
+  detail: string;
+}
+
+/** The three elements a TDX type-ahead lookup is really made of. */
+export interface LookupParts {
+  hidden: HTMLInputElement;
+  input: HTMLInputElement;
+  reset: HTMLInputElement | null;
+}
+
+/** A TDX lookup value: the id TDX submits, and the text a human reads. */
+export interface Captured {
+  id: string;
+  text: string;
+}
+
+/** One fillable control on the page, with every signal that could identify it. */
+export interface Control {
+  key: string;
+  el: Element;
+  shape: ControlShape;
+  fieldType: string | null;
+  fieldId: string | null;
+  label: string | null;
+  name: string | null;
+  id: string | null;
+  placeholder: string | null;
+  aria: string | null;
+  options: string[];
+  lookup: LookupParts | null;
+  richtext: { textarea: HTMLTextAreaElement; instanceKey: string } | null;
+}
+
+/** One canonical field: everything known about how to recognise it. */
+export interface FieldDef {
+  key: string;
+  label: string;
+  control: ControlKind;
+  fieldTypes: string[];
+  fieldIds: string[];
+  labels: string[];
+  patterns: RegExp[];
+  options: string[];
+  fixedValue?: string;
+  neverWrite?: boolean;
+}
+
+/** A field matched to a control, with how sure we are and which tier decided it. */
+export interface Match {
+  fieldKey: string;
+  control: Control;
+  confidence: number;
+  tier: 0 | 1 | 2 | 3;
+  evidence: string;
+}
+
+/** What the resolver saw for one control: what won, and what nearly won. */
+export interface Diag {
+  control: Control;
+  winner: Match | null;
+  runnersUp: { fieldKey: string; score: number; evidence: string }[];
+}
+
+/** The whole result of resolving a page. */
+export interface Resolution {
+  byField: Map<string, Match>;
+  byControl: Map<string, Match>;
+  unresolvedFields: string[];
+  diagnostics: Diag[];
+}
+
+/** The requestor, as parsed out of a pasted TDX block. Null means not found. */
+export interface RequestorFields {
+  name: string | null;
+  email: string | null;
+  personGuid: string | null;
+  personNumber: string | null;
+  ubitName: string | null;
+  title: string | null;
+  organization: string | null;
+}
+
+/** A saved issue template: what to write, and which service it belongs to. */
+export interface Template {
+  id: string;
+  name: string;
+  summary: string;
+  descriptionHtml: string;
+  service: Captured | null;
+}
+
+/** One past ticket the technician confirmed, used to suggest a service later. */
+export interface Example {
+  id: string;
+  savedAt: string;
+  description: string;
+  service: Captured;
+}
+
+/** A service the retriever thinks fits, with how well and which past tickets say so. */
+export interface Ranked {
+  service: Captured;
+  score: number;
+  evidence: { exampleId: string; snippet: string; terms: string[] }[];
+}
+
+/** The technician's preferences. */
+export interface Settings {
+  threshold: number;
+  overwrite: boolean;
+  diagnostics: boolean;
+  collapsed?: boolean;
+}
+
+/** One line in the results panel: what happened to one field. */
+export interface FillRow {
+  fieldKey: string;
+  label: string;
+  action: 'write' | 'report';
+  value: string | Captured | null;
+  status: FillStatus | 'pending';
+  detail: string;
+  control: Control | null;
+  confidence?: number;
+}
+
+/** The isolated world's handle on the page-world script that can reach CKEditor. */
+export interface Bridge {
+  setEditorData(instanceKey: string, html: string): Promise<{ ok: boolean; detail: string }>;
+}
+```
+
+Run `npm run typecheck`. Expected: clean.
+
+- [ ] **Step 5: Write the fixture generator**
 
 The saved capture is 1.4 MB and mostly scripts. This reduces it to the form
 subtree, which is the only part the engine reads.
 
-Create `scripts/make-fixture.mjs`:
+**`test/fixtures/tdx-form-162.html` already exists in the working tree and has
+been verified** (91,230 bytes, 19 distinct `data-fieldtype` markers, 28
+`data-fieldid` attributes, every control id the later tasks need, scripts
+stripped, `__RequestVerificationToken` reading `REDACTED`). Do not regenerate it.
+Write the generator anyway — it is how the fixture gets refreshed when TDX
+changes — and confirm re-running it against the source produces the same file.
 
-```js
-// Reduces a saved TDX technician-view page to just the ticket form subtree.
+Create `scripts/make-fixture.ts`:
+
+```ts
+// Cuts a saved 1.4 MB TDX page down to just the ticket form, so tests have real markup to work with.
+//
 // Run once; the output is checked in so tests never depend on a local download.
-//   node scripts/make-fixture.mjs "<path to saved New.html>" test/fixtures/tdx-form-162.html
+//   node scripts/make-fixture.ts "<path to saved New.html>" test/fixtures/tdx-form-162.html
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 const [, , input, output] = process.argv;
 if (!input || !output) {
-  console.error('usage: make-fixture.mjs <input.html> <output.html>');
+  console.error('usage: make-fixture.ts <input.html> <output.html>');
   process.exit(1);
 }
 
@@ -157,17 +501,23 @@ writeFileSync(
 console.log(`wrote ${output} (${form.length} bytes of form markup)`);
 ```
 
-Run it against the capture:
+Confirm it reproduces the checked-in fixture (it must leave the file unchanged):
 
 ```bash
-node scripts/make-fixture.mjs "/d/Downloads/Work Management _ UBIT Tech Squad_files/New.html" test/fixtures/tdx-form-162.html
+node scripts/make-fixture.ts "/d/Downloads/Work Management _ UBIT Tech Squad_files/New.html" test/fixtures/tdx-form-162.html
+git diff --stat test/fixtures/tdx-form-162.html
 ```
 
-- [ ] **Step 4: Write the test helper**
+Expected: `git diff` reports no change. If it does report one, the generator does
+not match the fixture that the rest of the plan was verified against — report it
+rather than committing a different fixture.
 
-Create `test/helpers.js`:
+- [ ] **Step 6: Write the test helper**
 
-```js
+Create `test/helpers.ts`:
+
+```ts
+// Loads the saved TDX form for tests, either as-is or with TDX's own field markers stripped out.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { JSDOM } from 'jsdom';
@@ -175,16 +525,16 @@ import { JSDOM } from 'jsdom';
 const FIXTURE = fileURLToPath(new URL('./fixtures/tdx-form-162.html', import.meta.url));
 
 /** Returns a fresh Document for the checked-in TDX form. */
-export function loadFixture() {
+export function loadFixture(): Document {
   return new JSDOM(readFileSync(FIXTURE, 'utf8')).window.document;
 }
 
 /**
- * Returns the fixture with every TDX-specific semantic marker removed and
- * labels shuffled, simulating a form the engine has never seen. Tier 3 must
- * still resolve the fill set from labels and option values alone.
+ * Returns the fixture with every TDX-specific semantic marker removed,
+ * simulating a form the engine has never seen. Labels and option sets are left
+ * intact on purpose — they are exactly the signals tier 3 must resolve from.
  */
-export function loadUnknownFormFixture() {
+export function loadUnknownFormFixture(): Document {
   const doc = loadFixture();
   for (const group of doc.querySelectorAll('[data-fieldtype]')) {
     group.removeAttribute('data-fieldtype');
@@ -194,14 +544,15 @@ export function loadUnknownFormFixture() {
 }
 ```
 
-- [ ] **Step 5: Write the failing test**
+- [ ] **Step 7: Write the fixture test**
 
-Create `test/fixture.test.js`:
+Create `test/fixture.test.ts`:
 
-```js
+```ts
+// Checks the saved TDX form still carries every signal the resolver reads.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture, loadUnknownFormFixture } from './helpers.js';
+import { loadFixture, loadUnknownFormFixture } from './helpers.ts';
 
 test('fixture carries the TDX semantic markers the resolver depends on', () => {
   const doc = loadFixture();
@@ -241,12 +592,12 @@ test('unknown-form fixture has no TDX semantic markers left', () => {
 });
 ```
 
-- [ ] **Step 6: Run the tests**
+- [ ] **Step 8: Run the checks**
 
-Run: `npm test`
-Expected: PASS. If the fixture was generated correctly, all five pass. A failure here means the fixture lost signal during reduction — fix `make-fixture.mjs` rather than weakening the test.
+Run: `npm run check`
+Expected: the type check is clean and all five fixture tests PASS. A test failure here means the fixture lost signal during reduction — fix `make-fixture.ts` rather than weakening the test.
 
-- [ ] **Step 7: Create `manifest.json`**
+- [ ] **Step 9: Create `manifest.json`**
 
 ```json
 {
@@ -278,11 +629,15 @@ The bridge is declared first so it is installed before the isolated-world script
 tries its handshake. `all_frames` is required because the ticket form is in a
 nested iframe; every frame self-tests and all but one exit immediately.
 
-- [ ] **Step 8: Commit**
+The manifest still points at `dist/*.js` — esbuild compiles the TypeScript
+sources to those two bundles. Chrome never sees TypeScript.
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add package.json package-lock.json .gitignore manifest.json scripts/ test/
-git commit -m "chore: scaffolding, manifest, and real-markup test fixture"
+git add package.json package-lock.json tsconfig.json .gitignore .dockerignore \
+        Dockerfile compose.yaml manifest.json scripts/ src/ test/
+git commit -m "chore: TypeScript scaffolding, Docker toolchain, and real-markup fixture"
 ```
 
 ---
@@ -292,8 +647,8 @@ git commit -m "chore: scaffolding, manifest, and real-markup test fixture"
 Acceptance criterion 1. Independent of the DOM, so it comes early.
 
 **Files:**
-- Create: `src/data/parser.js`
-- Test: `test/parser.test.js`
+- Create: `src/data/parser.ts`
+- Test: `test/parser.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -303,12 +658,12 @@ Acceptance criterion 1. Independent of the DOM, so it comes early.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/parser.test.js`:
+Create `test/parser.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRequestor } from '../src/data/parser.js';
+import { parseRequestor } from '../src/data/parser.ts';
 
 const MARKDOWN_BLOCK = `Requestor
 [Anh Duy Nghiem](https://ubuffalo.teamdynamix.com/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310)
@@ -375,12 +730,12 @@ test('the Requestor header line is not mistaken for the name', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `node --test test/parser.test.js`
-Expected: FAIL — `Cannot find module '../src/data/parser.js'`
+Run: `node --test test/parser.test.ts`
+Expected: FAIL — `Cannot find module '../src/data/parser.ts'`
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/data/parser.js`:
+Create `src/data/parser.ts`:
 
 ```js
 /**
@@ -457,13 +812,13 @@ export function parseRequestor(raw) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `node --test test/parser.test.js`
+Run: `node --test test/parser.test.ts`
 Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/data/parser.js test/parser.test.js
+git add src/data/parser.ts test/parser.test.ts
 git commit -m "feat: requestor block parser with warnings instead of throws"
 ```
 
@@ -475,8 +830,8 @@ The only place field identity is defined. No behavior, so its test is a
 structural contract check rather than a behavior test.
 
 **Files:**
-- Create: `src/core/dictionary.js`
-- Test: `test/dictionary.test.js`
+- Create: `src/core/dictionary.ts`
+- Test: `test/dictionary.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -488,12 +843,12 @@ structural contract check rather than a behavior test.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/dictionary.test.js`:
+Create `test/dictionary.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DICTIONARY, FILL_SET, byKey } from '../src/core/dictionary.js';
+import { DICTIONARY, FILL_SET, byKey } from '../src/core/dictionary.ts';
 
 test('every entry has the required shape', () => {
   for (const def of DICTIONARY) {
@@ -557,12 +912,12 @@ test('the dictionary covers every canonical field named in the spec', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `node --test test/dictionary.test.js`
+Run: `node --test test/dictionary.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/core/dictionary.js`:
+Create `src/core/dictionary.ts`:
 
 ```js
 /**
@@ -844,13 +1199,13 @@ export function byKey(key) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `node --test test/dictionary.test.js`
+Run: `node --test test/dictionary.test.ts`
 Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/core/dictionary.js test/dictionary.test.js
+git add src/core/dictionary.ts test/dictionary.test.ts
 git commit -m "feat: canonical field dictionary, the only place field identity lives"
 ```
 
@@ -862,8 +1217,8 @@ Enumerate fillable controls and gather every identifying signal, without
 deciding what any of them mean. Resolution is Task 6's job.
 
 **Files:**
-- Create: `src/core/harvest.js`
-- Test: `test/harvest.test.js`
+- Create: `src/core/harvest.ts`
+- Test: `test/harvest.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -889,13 +1244,13 @@ deciding what any of them mean. Resolution is Task 6's job.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/harvest.test.js`:
+Create `test/harvest.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture, loadUnknownFormFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
+import { loadFixture, loadUnknownFormFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
 
 const find = (controls, id) => controls.find((c) => c.id === id || c.lookup?.hidden?.id === id);
 
@@ -981,12 +1336,12 @@ test('control keys are unique and stable across two harvests of the same documen
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `node --test test/harvest.test.js`
+Run: `node --test test/harvest.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/core/harvest.js`:
+Create `src/core/harvest.ts`:
 
 ```js
 /**
@@ -1129,13 +1484,13 @@ function cssEscape(value) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `node --test test/harvest.test.js`
+Run: `node --test test/harvest.test.ts`
 Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/core/harvest.js test/harvest.test.js
+git add src/core/harvest.ts test/harvest.test.ts
 git commit -m "feat: control harvest with lookup, richtext, and select2 classification"
 ```
 
@@ -1144,8 +1499,8 @@ git commit -m "feat: control harvest with lookup, richtext, and select2 classifi
 ### Task 5: Form signature
 
 **Files:**
-- Create: `src/core/signature.js`
-- Test: `test/signature.test.js`
+- Create: `src/core/signature.ts`
+- Test: `test/signature.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -1153,14 +1508,14 @@ git commit -m "feat: control harvest with lookup, richtext, and select2 classifi
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/signature.test.js`:
+Create `test/signature.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { loadFixture } from './helpers.js';
-import { formSignature } from '../src/core/signature.js';
+import { loadFixture } from './helpers.ts';
+import { formSignature } from '../src/core/signature.ts';
 
 const docFrom = (html) => new JSDOM(html).window.document;
 
@@ -1203,12 +1558,12 @@ test('a document with no markers still yields a stable string', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `node --test test/signature.test.js`
+Run: `node --test test/signature.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/core/signature.js`:
+Create `src/core/signature.ts`:
 
 ```js
 /**
@@ -1250,13 +1605,13 @@ function fnv1a(input) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `node --test test/signature.test.js`
+Run: `node --test test/signature.test.ts`
 Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/core/signature.js test/signature.test.js
+git add src/core/signature.ts test/signature.test.ts
 git commit -m "feat: markup-derived form signature for the learning store"
 ```
 
@@ -1267,8 +1622,8 @@ git commit -m "feat: markup-derived form signature for the learning store"
 The centre of the project, and acceptance criterion 2.
 
 **Files:**
-- Create: `src/core/resolve.js`
-- Test: `test/resolve.test.js`
+- Create: `src/core/resolve.ts`
+- Test: `test/resolve.test.ts`
 
 **Interfaces:**
 - Consumes: `harvest()` from Task 4, `DICTIONARY`/`byKey` from Task 3.
@@ -1281,15 +1636,15 @@ The centre of the project, and acceptance criterion 2.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/resolve.test.js`:
+Create `test/resolve.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture, loadUnknownFormFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
-import { resolve, LOW_CONFIDENCE } from '../src/core/resolve.js';
-import { FILL_SET } from '../src/core/dictionary.js';
+import { loadFixture, loadUnknownFormFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
+import { resolve, LOW_CONFIDENCE } from '../src/core/resolve.ts';
+import { FILL_SET } from '../src/core/dictionary.ts';
 
 const resolveDoc = (doc, opts) => resolve(harvest(doc), opts);
 
@@ -1381,12 +1736,12 @@ test('resolution is deterministic', () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `node --test test/resolve.test.js`
+Run: `node --test test/resolve.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Write the implementation**
 
-Create `src/core/resolve.js`:
+Create `src/core/resolve.ts`:
 
 ```js
 /**
@@ -1403,7 +1758,7 @@ Create `src/core/resolve.js`:
  * — or an institution — this code has never seen.
  */
 
-import { DICTIONARY } from './dictionary.js';
+import { DICTIONARY } from './dictionary.ts';
 
 export const LOW_CONFIDENCE = 0.6;
 
@@ -1553,13 +1908,13 @@ function shapeMatches(shape, expected) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `node --test test/resolve.test.js`
+Run: `node --test test/resolve.test.ts`
 Expected: PASS, 10 tests. The acceptance test on the marker-stripped fixture is the one that matters — if it fails, tune the tier-3 weights or add synonyms to the dictionary, never add a selector.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/core/resolve.js test/resolve.test.js
+git add src/core/resolve.ts test/resolve.test.ts
 git commit -m "feat: four-tier field resolution with globally-best-match assignment"
 ```
 
@@ -1568,8 +1923,8 @@ git commit -m "feat: four-tier field resolution with globally-best-match assignm
 ### Task 7: waitFor and the text/select adapter
 
 **Files:**
-- Create: `src/adapters/wait.js`, `src/adapters/text.js`
-- Test: `test/wait.test.js`, `test/adapters-text.test.js`
+- Create: `src/adapters/wait.ts`, `src/adapters/text.ts`
+- Test: `test/wait.test.ts`, `test/adapters-text.test.ts`
 
 **Interfaces:**
 - Consumes: `Control` from Task 4.
@@ -1582,13 +1937,13 @@ git commit -m "feat: four-tier field resolution with globally-best-match assignm
 
 - [ ] **Step 1: Write the failing test for waitFor**
 
-Create `test/wait.test.js`:
+Create `test/wait.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { waitFor } from '../src/adapters/wait.js';
+import { waitFor } from '../src/adapters/wait.ts';
 
 test('resolves immediately when the predicate is already true', async () => {
   const dom = new JSDOM('<div id="here"></div>');
@@ -1636,12 +1991,12 @@ test('disconnects its observer and clears its poll on resolve', async () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/wait.test.js`
+Run: `node --test test/wait.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement waitFor**
 
-Create `src/adapters/wait.js`:
+Create `src/adapters/wait.ts`:
 
 ```js
 /**
@@ -1702,19 +2057,19 @@ export function waitFor(predicate, { timeout = 5000, root, win } = {}) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/wait.test.js`
+Run: `node --test test/wait.test.ts`
 Expected: PASS, 4 tests.
 
 - [ ] **Step 5: Write the failing test for the text/select adapter**
 
-Create `test/adapters-text.test.js`:
+Create `test/adapters-text.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { harvest } from '../src/core/harvest.js';
-import { fillText, fillSelect, readValue, setNativeValue } from '../src/adapters/text.js';
+import { harvest } from '../src/core/harvest.ts';
+import { fillText, fillSelect, readValue, setNativeValue } from '../src/adapters/text.ts';
 
 const controlFor = (html, id) => {
   const doc = new JSDOM(`<form>${html}</form>`).window.document;
@@ -1810,12 +2165,12 @@ test('readValue reports the current text for both shapes', () => {
 
 - [ ] **Step 6: Run it to verify it fails**
 
-Run: `node --test test/adapters-text.test.js`
+Run: `node --test test/adapters-text.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 7: Implement the text/select adapter**
 
-Create `src/adapters/text.js`:
+Create `src/adapters/text.ts`:
 
 ```js
 /**
@@ -1906,13 +2261,13 @@ export function readValue(control) {
 
 - [ ] **Step 8: Run it to verify it passes**
 
-Run: `node --test test/adapters-text.test.js`
+Run: `node --test test/adapters-text.test.ts`
 Expected: PASS, 8 tests.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/adapters/wait.js src/adapters/text.js test/wait.test.js test/adapters-text.test.js
+git add src/adapters/wait.ts src/adapters/text.ts test/wait.test.ts test/adapters-text.test.ts
 git commit -m "feat: waitFor helper and verified native-setter text/select adapter"
 ```
 
@@ -1921,8 +2276,8 @@ git commit -m "feat: waitFor helper and verified native-setter text/select adapt
 ### Task 8: Captured-lookup adapter
 
 **Files:**
-- Create: `src/adapters/lookup.js`
-- Test: `test/adapters-lookup.test.js`
+- Create: `src/adapters/lookup.ts`
+- Test: `test/adapters-lookup.test.ts`
 
 **Interfaces:**
 - Consumes: `Control` (shape `lookup`) from Task 4, `setNativeValue` from Task 7.
@@ -1933,14 +2288,14 @@ git commit -m "feat: waitFor helper and verified native-setter text/select adapt
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/adapters-lookup.test.js`:
+Create `test/adapters-lookup.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { harvest } from '../src/core/harvest.js';
-import { fillLookup, captureLookup, readLookup } from '../src/adapters/lookup.js';
+import { harvest } from '../src/core/harvest.ts';
+import { fillLookup, captureLookup, readLookup } from '../src/adapters/lookup.ts';
 
 const LOOKUP = `
 <div class="form-group" data-fieldtype="service" data-fieldid="789">
@@ -2044,12 +2399,12 @@ test('readLookup reports the visible text for preserve checks', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/adapters-lookup.test.js`
+Run: `node --test test/adapters-lookup.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the lookup adapter**
 
-Create `src/adapters/lookup.js`:
+Create `src/adapters/lookup.ts`:
 
 ```js
 /**
@@ -2066,7 +2421,7 @@ Create `src/adapters/lookup.js`:
  * id empty and the ticket saves with no service and no error.
  */
 
-import { setNativeValue } from './text.js';
+import { setNativeValue } from './text.ts';
 
 function fire(el, type) {
   el.dispatchEvent(new el.ownerDocument.defaultView.Event(type, { bubbles: true }));
@@ -2132,13 +2487,13 @@ function defaultCaption(hidden) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/adapters-lookup.test.js`
+Run: `node --test test/adapters-lookup.test.ts`
 Expected: PASS, 10 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/adapters/lookup.js test/adapters-lookup.test.js
+git add src/adapters/lookup.ts test/adapters-lookup.test.ts
 git commit -m "feat: captured {id,text} lookup adapter with verification and capture"
 ```
 
@@ -2147,8 +2502,8 @@ git commit -m "feat: captured {id,text} lookup adapter with verification and cap
 ### Task 9: Page-world bridge and the rich-text adapter
 
 **Files:**
-- Create: `src/content/bridge-main.js`, `src/adapters/richtext.js`
-- Test: `test/adapters-richtext.test.js`
+- Create: `src/content/bridge-main.ts`, `src/adapters/richtext.ts`
+- Test: `test/adapters-richtext.test.ts`
 
 **Interfaces:**
 - Consumes: `Control` (shape `richtext`), `setNativeValue`.
@@ -2160,14 +2515,14 @@ git commit -m "feat: captured {id,text} lookup adapter with verification and cap
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/adapters-richtext.test.js`:
+Create `test/adapters-richtext.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { harvest } from '../src/core/harvest.js';
-import { fillRichText, readRichText } from '../src/adapters/richtext.js';
+import { harvest } from '../src/core/harvest.ts';
+import { fillRichText, readRichText } from '../src/adapters/richtext.ts';
 
 const HTML = '<p>Removed the stale eduroam profile.</p>';
 
@@ -2261,12 +2616,12 @@ test('readRichText reports current content for preserve checks', async () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/adapters-richtext.test.js`
+Run: `node --test test/adapters-richtext.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the bridge (page world)**
 
-Create `src/content/bridge-main.js`:
+Create `src/content/bridge-main.ts`:
 
 ```js
 /**
@@ -2319,7 +2674,7 @@ function stripTags(html) {
 
 - [ ] **Step 4: Implement the rich-text adapter**
 
-Create `src/adapters/richtext.js`:
+Create `src/adapters/richtext.ts`:
 
 ```js
 /**
@@ -2331,7 +2686,7 @@ Create `src/adapters/richtext.js`:
  * land would put an empty ticket in the queue with nothing to notice it by.
  */
 
-import { setNativeValue } from './text.js';
+import { setNativeValue } from './text.ts';
 
 export const BRIDGE_CHANNEL = 'tdxa';
 const DEFAULT_BRIDGE_TIMEOUT = 3000;
@@ -2474,13 +2829,13 @@ no-fixed-sleep rule targets the latter.
 
 - [ ] **Step 5: Run it to verify it passes**
 
-Run: `node --test test/adapters-richtext.test.js`
+Run: `node --test test/adapters-richtext.test.ts`
 Expected: PASS, 7 tests.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/content/bridge-main.js src/adapters/richtext.js test/adapters-richtext.test.js
+git add src/content/bridge-main.ts src/adapters/richtext.ts test/adapters-richtext.test.ts
 git commit -m "feat: page-world CKEditor bridge and verified rich-text adapter"
 ```
 
@@ -2489,8 +2844,8 @@ git commit -m "feat: page-world CKEditor bridge and verified rich-text adapter"
 ### Task 10: Adapter dispatch
 
 **Files:**
-- Create: `src/adapters/index.js`
-- Test: `test/adapters-dispatch.test.js`
+- Create: `src/adapters/index.ts`
+- Test: `test/adapters-dispatch.test.ts`
 
 **Interfaces:**
 - Consumes: every adapter from Tasks 7–9.
@@ -2501,14 +2856,14 @@ git commit -m "feat: page-world CKEditor bridge and verified rich-text adapter"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/adapters-dispatch.test.js`:
+Create `test/adapters-dispatch.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
-import { applyValue, currentValue } from '../src/adapters/index.js';
+import { loadFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
+import { applyValue, currentValue } from '../src/adapters/index.ts';
 
 const controls = () => harvest(loadFixture());
 const byId = (id) => controls().find((c) => c.id === id || c.lookup?.hidden?.id === id);
@@ -2562,12 +2917,12 @@ test('currentValue works for every shape the fixture contains', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/adapters-dispatch.test.js`
+Run: `node --test test/adapters-dispatch.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the dispatcher**
 
-Create `src/adapters/index.js`:
+Create `src/adapters/index.ts`:
 
 ```js
 /**
@@ -2577,9 +2932,9 @@ Create `src/adapters/index.js`:
  * dispatcher sees a shape and a value, never a field name.
  */
 
-import { fillText, fillSelect, readValue } from './text.js';
-import { fillLookup, readLookup } from './lookup.js';
-import { fillRichText, readRichText } from './richtext.js';
+import { fillText, fillSelect, readValue } from './text.ts';
+import { fillLookup, readLookup } from './lookup.ts';
+import { fillRichText, readRichText } from './richtext.ts';
 
 export async function applyValue(control, value, ctx = {}) {
   switch (control.shape) {
@@ -2618,13 +2973,13 @@ export function currentValue(control) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/adapters-dispatch.test.js`
+Run: `node --test test/adapters-dispatch.test.ts`
 Expected: PASS, 7 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/adapters/index.js test/adapters-dispatch.test.js
+git add src/adapters/index.ts test/adapters-dispatch.test.ts
 git commit -m "feat: shape-based adapter dispatch"
 ```
 
@@ -2633,8 +2988,8 @@ git commit -m "feat: shape-based adapter dispatch"
 ### Task 11: Storage
 
 **Files:**
-- Create: `src/data/stores.js`
-- Test: `test/stores.test.js`
+- Create: `src/data/stores.ts`
+- Test: `test/stores.test.ts`
 
 **Interfaces:**
 - Consumes: nothing.
@@ -2650,12 +3005,12 @@ git commit -m "feat: shape-based adapter dispatch"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/stores.test.js`:
+Create `test/stores.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createStores, createMemoryArea, DEFAULT_SETTINGS } from '../src/data/stores.js';
+import { createStores, createMemoryArea, DEFAULT_SETTINGS } from '../src/data/stores.ts';
 
 const fresh = () => createStores(createMemoryArea());
 
@@ -2713,12 +3068,12 @@ test('no store persists requestor data', async () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/stores.test.js`
+Run: `node --test test/stores.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the stores**
 
-Create `src/data/stores.js`:
+Create `src/data/stores.ts`:
 
 ```js
 /**
@@ -2816,13 +3171,13 @@ export function createMemoryArea() {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/stores.test.js`
+Run: `node --test test/stores.test.ts`
 Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/data/stores.js test/stores.test.js
+git add src/data/stores.ts test/stores.test.ts
 git commit -m "feat: four local stores, with no requestor persistence by design"
 ```
 
@@ -2831,8 +3186,8 @@ git commit -m "feat: four local stores, with no requestor persistence by design"
 ### Task 12: Templates and placeholder substitution
 
 **Files:**
-- Create: `src/data/templates.js`
-- Test: `test/templates.test.js`
+- Create: `src/data/templates.ts`
+- Test: `test/templates.test.ts`
 
 **Interfaces:**
 - Consumes: parser output shape from Task 2.
@@ -2844,12 +3199,12 @@ git commit -m "feat: four local stores, with no requestor persistence by design"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/templates.test.js`:
+Create `test/templates.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SHIPPED_TEMPLATES, substitute, renderTemplate } from '../src/data/templates.js';
+import { SHIPPED_TEMPLATES, substitute, renderTemplate } from '../src/data/templates.ts';
 
 const REQUESTOR = {
   name: 'Anh Duy Nghiem', email: 'duynghie@buffalo.edu', ubitName: 'duynghie',
@@ -2923,12 +3278,12 @@ test('renderTemplate fills summary and description and reports unknowns once', (
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/templates.test.js`
+Run: `node --test test/templates.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement templates**
 
-Create `src/data/templates.js`:
+Create `src/data/templates.ts`:
 
 ```js
 /**
@@ -3026,13 +3381,13 @@ function escapeHtml(value) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/templates.test.js`
+Run: `node --test test/templates.test.ts`
 Expected: PASS, 8 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/data/templates.js test/templates.test.js
+git add src/data/templates.ts test/templates.test.ts
 git commit -m "feat: shipped issue templates and reporting placeholder substitution"
 ```
 
@@ -3041,8 +3396,8 @@ git commit -m "feat: shipped issue templates and reporting placeholder substitut
 ### Task 13: Local example retrieval
 
 **Files:**
-- Create: `src/service/retriever.js`
-- Test: `test/retriever.test.js`
+- Create: `src/service/retriever.ts`
+- Test: `test/retriever.test.ts`
 
 **Interfaces:**
 - Consumes: `examples` records from Task 11.
@@ -3053,12 +3408,12 @@ git commit -m "feat: shipped issue templates and reporting placeholder substitut
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/retriever.test.js`:
+Create `test/retriever.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { retrieve } from '../src/service/retriever.js';
+import { retrieve } from '../src/service/retriever.ts';
 
 const WIFI = { id: '288', text: 'Personal Device Consultation' };
 const ACCOUNT = { id: '301', text: 'Account Management' };
@@ -3123,12 +3478,12 @@ test('stopwords do not drive the ranking', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/retriever.test.js`
+Run: `node --test test/retriever.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the retriever**
 
-Create `src/service/retriever.js`:
+Create `src/service/retriever.ts`:
 
 ```js
 /**
@@ -3251,13 +3606,13 @@ function round(value) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/retriever.test.js`
+Run: `node --test test/retriever.test.ts`
 Expected: PASS, 9 tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/service/retriever.js test/retriever.test.js
+git add src/service/retriever.ts test/retriever.test.ts
 git commit -m "feat: local TF-IDF example retrieval behind a swappable interface"
 ```
 
@@ -3268,8 +3623,8 @@ git commit -m "feat: local TF-IDF example retrieval behind a swappable interface
 The only field-aware layer, and where acceptance criteria 3, 5, and 6 are proven.
 
 **Files:**
-- Create: `src/fill/policy.js`
-- Test: `test/policy.test.js`, `test/no-network.test.js`
+- Create: `src/fill/policy.ts`
+- Test: `test/policy.test.ts`, `test/no-network.test.ts`
 
 **Interfaces:**
 - Consumes: `resolve()` (Task 6), `applyValue`/`currentValue` (Task 10), `renderTemplate` (Task 12), `byKey`/`FILL_SET`/`DICTIONARY` (Task 3).
@@ -3281,16 +3636,16 @@ The only field-aware layer, and where acceptance criteria 3, 5, and 6 are proven
 
 - [ ] **Step 1: Write the failing test**
 
-Create `test/policy.test.js`:
+Create `test/policy.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
-import { resolve } from '../src/core/resolve.js';
-import { runFill, planFill } from '../src/fill/policy.js';
-import { SHIPPED_TEMPLATES } from '../src/data/templates.js';
+import { loadFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
+import { resolve } from '../src/core/resolve.ts';
+import { runFill, planFill } from '../src/fill/policy.ts';
+import { SHIPPED_TEMPLATES } from '../src/data/templates.ts';
 
 const REQUESTOR = { name: 'Anh Duy Nghiem', email: 'duynghie@buffalo.edu', ubitName: 'duynghie', personNumber: '50583450' };
 const EDUROAM = SHIPPED_TEMPLATES.find((t) => t.id === 'eduroam');
@@ -3416,12 +3771,12 @@ test('an adapter failure surfaces as failed with the mismatch, not as success', 
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/policy.test.js`
+Run: `node --test test/policy.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the fill policy**
 
-Create `src/fill/policy.js`:
+Create `src/fill/policy.ts`:
 
 ```js
 /**
@@ -3433,9 +3788,9 @@ Create `src/fill/policy.js`:
  * apart is what makes the engine testable against forms it has never seen.
  */
 
-import { DICTIONARY, FILL_SET, byKey } from '../core/dictionary.js';
-import { applyValue, currentValue } from '../adapters/index.js';
-import { renderTemplate } from '../data/templates.js';
+import { DICTIONARY, FILL_SET, byKey } from '../core/dictionary.ts';
+import { applyValue, currentValue } from '../adapters/index.ts';
+import { renderTemplate } from '../data/templates.ts';
 
 const OUT_OF_SCOPE = 'out of fill scope — resolved and reported, never written';
 
@@ -3547,25 +3902,25 @@ function truncate(text) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/policy.test.js`
+Run: `node --test test/policy.test.ts`
 Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Write the zero-network acceptance test**
 
-Create `test/no-network.test.js`:
+Create `test/no-network.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
-import { resolve } from '../src/core/resolve.js';
-import { formSignature } from '../src/core/signature.js';
-import { parseRequestor } from '../src/data/parser.js';
-import { retrieve } from '../src/service/retriever.js';
-import { runFill } from '../src/fill/policy.js';
-import { SHIPPED_TEMPLATES } from '../src/data/templates.js';
-import { createStores, createMemoryArea } from '../src/data/stores.js';
+import { loadFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
+import { resolve } from '../src/core/resolve.ts';
+import { formSignature } from '../src/core/signature.ts';
+import { parseRequestor } from '../src/data/parser.ts';
+import { retrieve } from '../src/service/retriever.ts';
+import { runFill } from '../src/fill/policy.ts';
+import { SHIPPED_TEMPLATES } from '../src/data/templates.ts';
+import { createStores, createMemoryArea } from '../src/data/stores.ts';
 
 const BLOCK = `Requestor
 [Anh Duy Nghiem](https://ubuffalo.teamdynamix.com/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310)
@@ -3623,7 +3978,7 @@ test('no source file references a network primitive or an external URL', async (
     for (const entry of readdirSync(dir)) {
       const full = join(dir, entry);
       if (statSync(full).isDirectory()) walk(full);
-      else if (full.endsWith('.js')) files.push(full);
+      else if (full.endsWith('.ts')) files.push(full);
     }
   };
   walk('src');
@@ -3646,12 +4001,12 @@ test('no source file references a network primitive or an external URL', async (
 - [ ] **Step 6: Run the full suite**
 
 Run: `npm test`
-Expected: PASS, every file. If the second test fails on `src/adapters/lookup.js`, that means a lookup is driving the autocomplete — the design says it must not.
+Expected: PASS, every file. If the second test fails on `src/adapters/lookup.ts`, that means a lookup is driving the autocomplete — the design says it must not.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/fill/policy.js test/policy.test.js test/no-network.test.js
+git add src/fill/policy.ts test/policy.test.ts test/no-network.test.ts
 git commit -m "feat: fill policy with preserve-by-default, plus zero-network acceptance test"
 ```
 
@@ -3663,8 +4018,8 @@ The results panel is the most important element in the UI: it is what turns a
 form that looks correct into a form you can tell is correct.
 
 **Files:**
-- Create: `src/ui/panel.css.js`, `src/ui/results.js`
-- Test: `test/results.test.js`
+- Create: `src/ui/panel.css.ts`, `src/ui/results.ts`
+- Test: `test/results.test.ts`
 
 **Interfaces:**
 - Consumes: `Row[]` from Task 14.
@@ -3676,7 +4031,7 @@ form that looks correct into a form you can tell is correct.
 
 - [ ] **Step 1: Write the stylesheet**
 
-Create `src/ui/panel.css.js`:
+Create `src/ui/panel.css.ts`:
 
 ```js
 /**
@@ -3765,13 +4120,13 @@ pre.diagnostics {
 
 - [ ] **Step 2: Write the failing test for results**
 
-Create `test/results.test.js`:
+Create `test/results.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { renderResults, highlightFilled, STATUS_META } from '../src/ui/results.js';
+import { renderResults, highlightFilled, STATUS_META } from '../src/ui/results.ts';
 
 const dom = () => new JSDOM('<body><input id="a"><input id="b"></body>').window.document;
 
@@ -3851,12 +4206,12 @@ test('highlightFilled injects its stylesheet once, not once per fill', () => {
 
 - [ ] **Step 3: Run it to verify it fails**
 
-Run: `node --test test/results.test.js`
+Run: `node --test test/results.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 4: Implement the results panel**
 
-Create `src/ui/results.js`:
+Create `src/ui/results.ts`:
 
 ```js
 /**
@@ -3979,13 +4334,13 @@ function meta(status) {
 
 - [ ] **Step 5: Run it to verify it passes**
 
-Run: `node --test test/results.test.js`
+Run: `node --test test/results.test.ts`
 Expected: PASS, 7 tests.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/ui/panel.css.js src/ui/results.js test/results.test.js
+git add src/ui/panel.css.ts src/ui/results.ts test/results.test.ts
 git commit -m "feat: panel stylesheet and results panel with failures sorted first"
 ```
 
@@ -3994,8 +4349,8 @@ git commit -m "feat: panel stylesheet and results panel with failures sorted fir
 ### Task 16: Diagnostic mode and settings
 
 **Files:**
-- Create: `src/ui/diagnostics.js`, `src/ui/settings.js`
-- Test: `test/diagnostics.test.js`, `test/settings.test.js`
+- Create: `src/ui/diagnostics.ts`, `src/ui/settings.ts`
+- Test: `test/diagnostics.test.ts`, `test/settings.test.ts`
 
 **Interfaces:**
 - Consumes: `Resolution.diagnostics` (Task 6), `Stores` (Task 11), `SHIPPED_TEMPLATES` (Task 12).
@@ -4006,17 +4361,17 @@ git commit -m "feat: panel stylesheet and results panel with failures sorted fir
 
 - [ ] **Step 1: Write the failing test for diagnostics**
 
-Create `test/diagnostics.test.js`:
+Create `test/diagnostics.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { loadFixture } from './helpers.js';
-import { harvest } from '../src/core/harvest.js';
-import { resolve } from '../src/core/resolve.js';
-import { formSignature } from '../src/core/signature.js';
-import { formatDiagnostics, renderDiagnostics } from '../src/ui/diagnostics.js';
+import { loadFixture } from './helpers.ts';
+import { harvest } from '../src/core/harvest.ts';
+import { resolve } from '../src/core/resolve.ts';
+import { formSignature } from '../src/core/signature.ts';
+import { formatDiagnostics, renderDiagnostics } from '../src/ui/diagnostics.ts';
 
 const dump = () => {
   const doc = loadFixture();
@@ -4069,12 +4424,12 @@ test('renderDiagnostics produces a pre plus a working copy button', async () => 
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `node --test test/diagnostics.test.js`
+Run: `node --test test/diagnostics.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement diagnostics**
 
-Create `src/ui/diagnostics.js`:
+Create `src/ui/diagnostics.ts`:
 
 ```js
 /**
@@ -4148,19 +4503,19 @@ function round(value) {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `node --test test/diagnostics.test.js`
+Run: `node --test test/diagnostics.test.ts`
 Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Write the failing test for settings**
 
-Create `test/settings.test.js`:
+Create `test/settings.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { createStores, createMemoryArea } from '../src/data/stores.js';
-import { renderSettings } from '../src/ui/settings.js';
+import { createStores, createMemoryArea } from '../src/data/stores.ts';
+import { renderSettings } from '../src/ui/settings.ts';
 
 const setup = async (seed) => {
   const doc = new JSDOM('<body></body>').window.document;
@@ -4222,12 +4577,12 @@ test('saved examples can be listed and deleted, because a wrong one poisons retr
 
 - [ ] **Step 6: Run it to verify it fails**
 
-Run: `node --test test/settings.test.js`
+Run: `node --test test/settings.test.ts`
 Expected: FAIL — module not found.
 
 - [ ] **Step 7: Implement settings**
 
-Create `src/ui/settings.js`:
+Create `src/ui/settings.ts`:
 
 ```js
 /**
@@ -4389,13 +4744,13 @@ function truncate(text) {
 
 - [ ] **Step 8: Run it to verify it passes**
 
-Run: `node --test test/settings.test.js`
+Run: `node --test test/settings.test.ts`
 Expected: PASS, 5 tests.
 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/ui/diagnostics.js src/ui/settings.js test/diagnostics.test.js test/settings.test.js
+git add src/ui/diagnostics.ts src/ui/settings.ts test/diagnostics.test.ts test/settings.test.ts
 git commit -m "feat: copy-pasteable diagnostic dump and settings view"
 ```
 
@@ -4406,8 +4761,8 @@ git commit -m "feat: copy-pasteable diagnostic dump and settings view"
 The last task wires everything together and ships it.
 
 **Files:**
-- Create: `src/ui/panel.js`, `src/content/mount.js`, `README.md`
-- Test: `test/panel.test.js`, `test/mount.test.js`
+- Create: `src/ui/panel.ts`, `src/content/mount.ts`, `README.md`
+- Test: `test/panel.test.ts`, `test/mount.test.ts`
 
 **Interfaces:**
 - Consumes: every module built so far.
@@ -4418,15 +4773,15 @@ The last task wires everything together and ships it.
 
 - [ ] **Step 1: Write the failing test for the frame self-test**
 
-Create `test/mount.test.js`:
+Create `test/mount.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { loadFixture } from './helpers.js';
-import { isTicketForm, mountIfTicketForm } from '../src/content/mount.js';
-import { createStores, createMemoryArea } from '../src/data/stores.js';
+import { loadFixture } from './helpers.ts';
+import { isTicketForm, mountIfTicketForm } from '../src/content/mount.ts';
+import { createStores, createMemoryArea } from '../src/data/stores.ts';
 
 test('recognises a TDX ticket form', () => {
   assert.equal(isTicketForm(loadFixture()), true);
@@ -4472,14 +4827,14 @@ test('in wait mode it mounts once the form appears', async () => {
 
 - [ ] **Step 2: Write the failing test for the panel**
 
-Create `test/panel.test.js`:
+Create `test/panel.test.ts`:
 
 ```js
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture } from './helpers.js';
-import { createPanel } from '../src/ui/panel.js';
-import { createStores, createMemoryArea } from '../src/data/stores.js';
+import { loadFixture } from './helpers.ts';
+import { createPanel } from '../src/ui/panel.ts';
+import { createStores, createMemoryArea } from '../src/data/stores.ts';
 
 const BLOCK = `Requestor
 [Anh Duy Nghiem](https://ubuffalo.teamdynamix.com/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310)
@@ -4612,12 +4967,12 @@ test('the panel collapses and remembers it', async () => {
 
 - [ ] **Step 3: Run both to verify they fail**
 
-Run: `node --test test/panel.test.js test/mount.test.js`
+Run: `node --test test/panel.test.ts test/mount.test.ts`
 Expected: FAIL — modules not found.
 
 - [ ] **Step 4: Implement the panel**
 
-Create `src/ui/panel.js`:
+Create `src/ui/panel.ts`:
 
 ```js
 /**
@@ -4628,19 +4983,19 @@ Create `src/ui/panel.js`:
  * memory and never writes it to storage: those are student records.
  */
 
-import { PANEL_CSS } from './panel.css.js';
-import { renderResults, highlightFilled } from './results.js';
-import { formatDiagnostics, renderDiagnostics } from './diagnostics.js';
-import { renderSettings } from './settings.js';
-import { harvest } from '../core/harvest.js';
-import { resolve } from '../core/resolve.js';
-import { formSignature } from '../core/signature.js';
-import { DICTIONARY } from '../core/dictionary.js';
-import { parseRequestor } from '../data/parser.js';
-import { SHIPPED_TEMPLATES } from '../data/templates.js';
-import { retrieve } from '../service/retriever.js';
-import { runFill } from '../fill/policy.js';
-import { captureLookup } from '../adapters/lookup.js';
+import { PANEL_CSS } from './panel.css.ts';
+import { renderResults, highlightFilled } from './results.ts';
+import { formatDiagnostics, renderDiagnostics } from './diagnostics.ts';
+import { renderSettings } from './settings.ts';
+import { harvest } from '../core/harvest.ts';
+import { resolve } from '../core/resolve.ts';
+import { formSignature } from '../core/signature.ts';
+import { DICTIONARY } from '../core/dictionary.ts';
+import { parseRequestor } from '../data/parser.ts';
+import { SHIPPED_TEMPLATES } from '../data/templates.ts';
+import { retrieve } from '../service/retriever.ts';
+import { runFill } from '../fill/policy.ts';
+import { captureLookup } from '../adapters/lookup.ts';
 
 export async function createPanel({ doc, stores, bridge, now = () => new Date() } = {}) {
   const document = doc ?? globalThis.document;
@@ -5013,7 +5368,7 @@ function missingWarnings(fields) {
 
 - [ ] **Step 5: Implement the frame mount**
 
-Create `src/content/mount.js`:
+Create `src/content/mount.ts`:
 
 ```js
 /**
@@ -5025,10 +5380,10 @@ Create `src/content/mount.js`:
  * single querySelector per frame.
  */
 
-import { createPanel } from '../ui/panel.js';
-import { createStores } from '../data/stores.js';
-import { createBridgeClient } from '../adapters/richtext.js';
-import { waitFor } from '../adapters/wait.js';
+import { createPanel } from '../ui/panel.ts';
+import { createStores } from '../data/stores.ts';
+import { createBridgeClient } from '../adapters/richtext.ts';
+import { waitFor } from '../adapters/wait.ts';
 
 export function isTicketForm(doc) {
   const form = doc.querySelector('form');
@@ -5070,7 +5425,7 @@ if (typeof globalThis.chrome?.storage?.local !== 'undefined' && typeof document 
 
 - [ ] **Step 6: Run both test files to verify they pass**
 
-Run: `node --test test/panel.test.js test/mount.test.js`
+Run: `node --test test/panel.test.ts test/mount.test.ts`
 Expected: PASS, 12 + 6 tests.
 
 - [ ] **Step 7: Run the full suite and build**
@@ -5138,7 +5493,7 @@ never end up serving two fields.
 
 ### Extending the dictionary
 
-`src/core/dictionary.js` is the only place a field's identity is written down.
+`src/core/dictionary.ts` is the only place a field's identity is written down.
 Add an entry and nothing else changes:
 
 ```js
@@ -5155,7 +5510,7 @@ Add an entry and nothing else changes:
 ```
 
 To make it fillable, add its key to `FILL_SET` and give it a case in
-`valueFor()` in `src/fill/policy.js`. That is the only field-aware code in the
+`valueFor()` in `src/fill/policy.ts`. That is the only field-aware code in the
 project.
 
 ## Debugging a bad match
@@ -5202,7 +5557,7 @@ There is no access to TDX ticket history, so there is no corpus to start from.
 This is retrieval over your own confirmed examples. It is not RAG and there is
 nothing neural in it.
 
-`src/service/retriever.js` exports one function, `retrieve(queryText, examples)`,
+`src/service/retriever.ts` exports one function, `retrieve(queryText, examples)`,
 returning `[{ service, score, evidence }]`. Swapping in an embedding retriever
 later means writing a module with that same signature; nothing above it changes.
 
@@ -5236,7 +5591,7 @@ one exit immediately.
 script's isolated world. The `world: "MAIN"` script exists only to call
 `setData` on the description editor and exposes nothing else.
 
-**`panel.css.js` exports a string.** A shadow root needs the CSS text, and a
+**`panel.css.ts` exports a string.** A shadow root needs the CSS text, and a
 plain `.css` file would have to be declared in `web_accessible_resources`,
 widening what any page can see for no benefit.
 
@@ -5264,10 +5619,11 @@ npm test
 
 The fixture in `test/fixtures/` is a real TDX form with the scripts stripped and
 the session token redacted. The most important test resolves the fill set from a
-copy of that fixture with every TDX marker removed and labels shuffled: if that
-passes, the engine works on forms it has never seen.
+copy of that fixture with every TDX marker removed: if that passes, the engine
+resolves from labels and option values alone, and works on forms it has never
+seen.
 
-`test/no-network.test.js` replaces `fetch`, `XMLHttpRequest`, `WebSocket`,
+`test/no-network.test.ts` replaces `fetch`, `XMLHttpRequest`, `WebSocket`,
 `EventSource`, and `sendBeacon` with landmines, runs a full parse-to-fill cycle,
 and also greps every source file for network primitives and external URLs.
 
@@ -5300,7 +5656,7 @@ depends on or describes it.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/ui/panel.js src/content/mount.js README.md test/panel.test.js test/mount.test.js
+git add src/ui/panel.ts src/content/mount.ts README.md test/panel.test.ts test/mount.test.ts
 git commit -m "feat: floating panel, frame mount, and README"
 ```
 
@@ -5308,9 +5664,10 @@ git commit -m "feat: floating panel, frame mount, and README"
 
 ## Verification before calling this done
 
-- [ ] `npm test` passes with every file green.
+- [ ] `npm run check` passes: type check clean, every test file green.
 - [ ] `npm run build` produces `dist/content.js` and `dist/bridge.js`.
+- [ ] `npm run docker:test` passes, proving the toolchain is reproducible.
 - [ ] The extension loads unpacked with no manifest errors.
 - [ ] The manual checklist in the README passes on a real TDX form.
-- [ ] `git grep -n "attribute[0-9]" src/ | grep -v dictionary.js` returns nothing outside the dictionary — no selector strings leaked into fill or adapter logic.
+- [ ] `git grep -n "attribute[0-9]" src/ | grep -v dictionary.ts` returns nothing outside the dictionary — no selector strings leaked into fill or adapter logic.
 
