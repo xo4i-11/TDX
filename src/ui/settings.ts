@@ -17,14 +17,23 @@ export interface RenderSettingsOptions {
   stores: Stores;
   /** Called after any store write, so the panel can refresh anything that depends on settings. */
   onChange?: () => void;
+  /**
+   * Wraps a listener so a rejected store call surfaces as visible panel text
+   * instead of a silent no-op plus a console-only unhandled rejection — see
+   * panel.ts's own `guarded`. Defaults to a plain passthrough so callers that
+   * don't care about that (existing tests) see no behaviour change.
+   */
+  guarded?: (action: () => void | Promise<void>) => () => void;
 }
 
 /** Builds the full settings view: threshold, templates, examples, learned mappings — freshly read from the stores. */
-export async function renderSettings({ doc, stores, onChange = () => {} }: RenderSettingsOptions): Promise<HTMLElement> {
+export async function renderSettings({
+  doc, stores, onChange = () => {}, guarded = (action) => () => { action(); },
+}: RenderSettingsOptions): Promise<HTMLElement> {
   const wrap = doc.createElement('div');
 
   const rerender = async (): Promise<void> => {
-    wrap.replaceChildren(...(await buildSections(doc, stores, rerender, onChange)));
+    wrap.replaceChildren(...(await buildSections(doc, stores, rerender, onChange, guarded)));
   };
   await rerender();
   return wrap;
@@ -35,6 +44,7 @@ async function buildSections(
   stores: Stores,
   rerender: () => Promise<void>,
   onChange: () => void,
+  guarded: (action: () => void | Promise<void>) => () => void,
 ): Promise<HTMLElement[]> {
   const [settings, templates, examples] = await Promise.all([
     stores.settings.get(),
@@ -53,10 +63,10 @@ async function buildSections(
   threshold.max = '1';
   threshold.step = '0.05';
   threshold.value = String(settings.threshold);
-  threshold.addEventListener('change', async () => {
+  threshold.addEventListener('change', guarded(async () => {
     await stores.settings.patch({ threshold: Number(threshold.value) });
     onChange();
-  });
+  }));
   thresholdSection.append(threshold, note(doc, 'Below this similarity, no service is suggested and the template default is used instead.'));
   sections.push(thresholdSection);
 
@@ -64,11 +74,11 @@ async function buildSections(
   const templateSection = section(doc, 'Templates');
   const isShipped = (id: string): boolean => SHIPPED_TEMPLATES.some((t) => t.id === id);
   for (const template of templates) {
-    templateSection.append(templateRow(doc, template, isShipped(template.id), async () => {
+    templateSection.append(templateRow(doc, template, isShipped(template.id), guarded(async () => {
       await stores.templates.remove(template.id);
       await rerender();
       onChange();
-    }));
+    })));
   }
   // True whether the list is empty, or holds only shipped ids the technician
   // captured a service onto — "Set up eduroam" here is not a template the
@@ -85,7 +95,7 @@ async function buildSections(
   add.className = 'primary';
   add.textContent = 'Add template';
   add.setAttribute('data-add-template', '');
-  add.addEventListener('click', async () => {
+  add.addEventListener('click', guarded(async () => {
     if (!nameInput.value.trim()) return;
     await stores.templates.save({
       id: `t-${Date.now().toString(36)}`,
@@ -97,7 +107,7 @@ async function buildSections(
     });
     await rerender();
     onChange();
-  });
+  }));
   templateSection.append(add);
   sections.push(templateSection);
 
@@ -105,11 +115,11 @@ async function buildSections(
   const exampleSection = section(doc, 'Saved examples');
   if (examples.length) {
     for (const example of examples) {
-      exampleSection.append(exampleRow(doc, example, async () => {
+      exampleSection.append(exampleRow(doc, example, guarded(async () => {
         await stores.examples.remove(example.id);
         await rerender();
         onChange();
-      }));
+      })));
     }
   } else {
     exampleSection.append(note(doc, 'No examples saved yet. Service suggestions start once you save some.'));
@@ -122,11 +132,11 @@ async function buildSections(
   clear.type = 'button';
   clear.textContent = 'Clear all learned mappings';
   clear.setAttribute('data-clear-learned', '');
-  clear.addEventListener('click', async () => {
+  clear.addEventListener('click', guarded(async () => {
     await stores.learned.clearAll();
     await rerender();
     onChange();
-  });
+  }));
   learnedSection.append(
     note(doc, 'Corrections are remembered per form. Clear them if TDX changed and the old mapping is wrong.'),
     clear,

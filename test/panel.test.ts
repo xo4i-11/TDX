@@ -109,7 +109,11 @@ test('parsing a pasted block shows the fields and flags nothing missing', async 
   assert.match(parsed, /Anh Duy Nghiem/);
   assert.match(parsed, /duynghie/);
   assert.match(parsed, /b067308b-2198-ef11-9c36-f06ebc4e4310/);
-  assert.equal($('.missing'), null, 'nothing should be flagged missing for a complete block');
+  // Scoped to the requestor section: the panel's persistent (but hidden)
+  // top-level error node also carries the shared `.missing` class, so a
+  // bare `$('.missing')` would find that instead of proving the parse result
+  // itself flagged nothing.
+  assert.equal($('[data-section="requestor"] .missing'), null, 'nothing should be flagged missing for a complete block');
 
   // The Parse click re-renders the whole panel body (replaceChildren); the
   // pasted text must survive that, not just the parsed result it produced.
@@ -280,8 +284,44 @@ test('a rejected store write surfaces as visible panel text instead of vanishing
   click(must($('button[data-collapse]'), 'collapse button missing'), doc);
   await settle();
 
-  const body = must($<HTMLElement>('.body'), 'panel body missing');
-  assert.match(body.textContent ?? '', /Extension context invalidated/, 'the rejection must be visible panel text, not just a console error');
+  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
+  assert.equal(errorEl.hidden, false, 'the error line must be visible');
+  assert.match(errorEl.textContent ?? '', /Extension context invalidated/, 'the rejection must be visible panel text, not just a console error');
+});
+
+test('when the whole storage layer is dead (extension reloaded mid-session), Fill still surfaces a visible error', async () => {
+  // The realistic trigger named in review: "Extension context invalidated"
+  // kills every chrome.storage.local call in the tab from that instant, not
+  // just the one method a handler happens to call — so the recovery render()
+  // itself (which starts with its own stores.settings.get()) cannot survive
+  // either. The panel must already have mounted successfully before storage
+  // dies (createPanel's own bootstrap calls stores.learned.get/settings.get
+  // too — if those are already dead, createPanel itself never resolves, and
+  // mount.ts's console.error is the only signal; see the new README section).
+  const doc = loadFixture();
+  const stores = createStores(createMemoryArea());
+  const panel = await createPanel({ doc, stores, bridge });
+  const $ = <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel);
+
+  const dead = async (): Promise<never> => { throw new Error('Extension context invalidated.'); };
+  stores.settings.get = dead;
+  stores.settings.patch = dead;
+  stores.templates.list = dead;
+  stores.templates.save = dead;
+  stores.templates.remove = dead;
+  stores.examples.list = dead;
+  stores.examples.add = dead;
+  stores.examples.remove = dead;
+  stores.learned.get = dead;
+  stores.learned.set = dead;
+  stores.learned.clearAll = dead;
+
+  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  await settle();
+
+  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
+  assert.equal(errorEl.hidden, false, 'the error line must be visible even though the recovery render cannot complete');
+  assert.match(errorEl.textContent ?? '', /Extension context invalidated/);
 });
 
 test('capturing a service with nothing selected on the form surfaces a notice instead of doing nothing', async () => {
@@ -296,8 +336,9 @@ test('capturing a service with nothing selected on the form surfaces a notice in
   click(must($('button[data-capture-service]'), 'capture-service button missing'), doc);
   await settle();
 
-  const body = must($<HTMLElement>('.body'), 'panel body missing');
-  assert.match(body.textContent ?? '', /could not capture a service/i);
+  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
+  assert.equal(errorEl.hidden, false);
+  assert.match(errorEl.textContent ?? '', /could not capture a service/i);
 });
 
 test('saving an example with no service confirmed surfaces a notice instead of doing nothing', async () => {
@@ -308,8 +349,9 @@ test('saving an example with no service confirmed surfaces a notice instead of d
   await settle();
 
   assert.equal((await stores.examples.list()).length, 0, 'nothing should be saved without a service');
-  const body = must($<HTMLElement>('.body'), 'panel body missing');
-  assert.match(body.textContent ?? '', /could not save an example/i);
+  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
+  assert.equal(errorEl.hidden, false);
+  assert.match(errorEl.textContent ?? '', /could not save an example/i);
 });
 
 test('saving an example after a fill stores it under the confirmed service', async () => {

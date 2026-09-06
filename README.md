@@ -107,6 +107,14 @@ show up on a page that should be a ticket form, check, in order:
    gate is deliberately refusing to mount, on the same evidence `isTicketForm`
    uses to reject the TDNext shell and unrelated forms — that is the point of
    the gate, not a bug.
+3. **Was the extension just reloaded (or updated) while this tab stayed open?**
+   `createPanel` reads from `chrome.storage.local` before it draws anything —
+   before the panel exists, there is nothing on the page yet to show an error
+   in. If storage is dead at that point (a reload invalidates every extension
+   API in every tab open before the reload), mounting fails outright and that
+   frame's console shows `[TDX Autofill] failed to mount:` instead of the
+   `gave up waiting` line above. The fix is the tab, not the form: refresh the
+   page so the content script re-injects against the reloaded extension.
 
 ## The learning layer
 

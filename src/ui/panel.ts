@@ -71,8 +71,6 @@ interface PanelState {
   rows: FillRow[];
   showDiagnostics: boolean;
   showSettings: boolean;
-  /** The last action's failure, if any — shown at the top of the body until the next click. */
-  error: string | null;
 }
 
 export async function createPanel({ doc: document, stores, bridge, now = () => new Date() }: CreatePanelOptions): Promise<PanelHandle> {
@@ -85,7 +83,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     rows: [],
     showDiagnostics: false,
     showSettings: false,
-    error: null,
   };
 
   const controls = harvest(document);
@@ -104,6 +101,30 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   const panel = document.createElement('div');
   panel.className = 'panel';
   shadow.append(panel);
+
+  // A persistent DOM node, owned here rather than rebuilt by render()/body().
+  // The whole point: render() itself touches storage (stores.settings.get(),
+  // then templates()/serviceSuggestion()'s several more calls) and can fail
+  // for the exact same reason the action that triggered it failed — "every
+  // chrome.storage.local call is dead" is a total outage, not a one-method
+  // failure, once an unpacked extension is reloaded mid-session. Writing
+  // straight into this node means the failure is visible even when the
+  // best-effort recovery render() below can't complete at all.
+  const errorEl = document.createElement('p');
+  errorEl.className = 'missing';
+  errorEl.setAttribute('data-error', '');
+  errorEl.hidden = true;
+  panel.append(errorEl);
+
+  function setError(message: string): void {
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
+
+  function clearError(): void {
+    errorEl.textContent = '';
+    errorEl.hidden = true;
+  }
 
   const initialSettings = await stores.settings.get();
   panel.dataset.collapsed = String(Boolean(initialSettings.collapsed));
@@ -135,7 +156,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   async function render(): Promise<void> {
     const current = await stores.settings.get();
-    panel.replaceChildren(header(), await body(current));
+    panel.replaceChildren(errorEl, header(), await body(current));
   }
 
   function header(): HTMLElement {
@@ -164,15 +185,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const wrap = document.createElement('div');
     wrap.className = 'body';
 
-    if (state.error) {
-      const err = document.createElement('p');
-      err.className = 'missing';
-      err.textContent = state.error;
-      wrap.append(err);
-    }
-
     if (state.showSettings) {
-      wrap.append(await renderSettings({ doc: document, stores, onChange: render }));
+      wrap.append(await renderSettings({ doc: document, stores, onChange: render, guarded }));
       return wrap;
     }
 
@@ -318,7 +332,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       if (!captured) {
         // The ordinary case where the technician forgot to set the Service
         // lookup on the form first — must say so, not do nothing.
-        state.error = 'Could not capture a service: nothing is selected in the Service lookup on the form.';
+        setError('Could not capture a service: nothing is selected in the Service lookup on the form.');
         return render();
       }
       const template = await selectedTemplate();
@@ -390,12 +404,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       // panel.ts's button()/guarded() wrapper — it has to catch its own
       // failures rather than rely on a caller that doesn't know about `state`.
       onCorrect: async (controlKey, fieldKey) => {
+        clearError();
         try {
           await stores.learned.set(signature, { [controlKey]: fieldKey });
           resolution = resolve(controls, { learned: await stores.learned.get(signature) });
           await render();
         } catch (error) {
-          state.error = describeError(error);
+          setError(describeError(error));
           await render().catch(() => {});
         }
       },
@@ -405,7 +420,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const template = await selectedTemplate();
       const service = state.confirmedService ?? template.service;
       if (!service) {
-        state.error = 'Could not save an example: no service is confirmed or captured for this template yet.';
+        setError('Could not save an example: no service is confirmed or captured for this template yet.');
         return render();
       }
       await stores.examples.add({ description: `${template.summary} ${template.descriptionHtml}`, service });
@@ -442,15 +457,17 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
    */
   function guarded(action: () => void | Promise<void>): () => void {
     return () => {
-      state.error = null;
+      clearError();
       Promise.resolve().then(action).catch((error: unknown) => {
-        state.error = describeError(error);
-        // ponytail: best-effort recovery render. If storage is so completely
-        // gone that even this render's own stores.settings.get() call would
-        // also reject, there is nothing further this layer can do — swallow
-        // rather than compound the console noise with a second unhandled
-        // rejection. Full resilience to a fully-dead storage layer is out of
-        // scope for this round.
+        // Written straight into the DOM first — not through state+render —
+        // because render() is itself several storage round trips deep
+        // (settings.get, then templates()/serviceSuggestion()'s more calls)
+        // and a total storage outage (the realistic trigger here) kills all
+        // of them, not just the one this action happened to call.
+        setError(describeError(error));
+        // Best-effort only from here: if the recovery succeeds it picks up
+        // the same errorEl (see render()), so the message survives; if it
+        // also fails, the message set above is already visible regardless.
         render().catch(() => {});
       });
     };
@@ -469,7 +486,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     if (event.key !== 'Escape') return;
     panel.dataset.collapsed = 'true';
     stores.settings.patch({ collapsed: true }).catch((error: unknown) => {
-      state.error = describeError(error);
+      setError(describeError(error));
       render().catch(() => {});
     });
   }
