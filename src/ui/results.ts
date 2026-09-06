@@ -143,7 +143,20 @@ function injectHighlightStyle(doc: Document): void {
   (doc.head ?? doc.documentElement).append(style);
 }
 
-/** Status meta, widened to cover the transient 'pending' row a plan produces before it's executed. */
+/**
+ * Status meta, widened to cover the transient 'pending' row a plan produces
+ * before it's executed.
+ *
+ * Invariant this `order: 9` relies on: today, `'pending'` can never reach a
+ * rendered panel, because `executeFill` (fill/policy.ts) is the sole gate
+ * between a plan and this renderer, and it unconditionally replaces every
+ * write row's status with a concrete `FillStatus` before returning — the
+ * panel only ever assigns rendered rows from that return value, never from a
+ * bare plan. That holds because executeFill is the only path in, not because
+ * 'pending' is inherently a pre-execution state: a future dry-run preview
+ * that rendered a *plan* directly would hit this branch for real, and
+ * 'pending' rows sorting below the successes would need re-deciding then.
+ */
 function meta(status: FillRow['status']): StatusInfo {
   if (status === 'pending') return { icon: '…', tone: 'mute', order: 9 };
   return STATUS_META[status];

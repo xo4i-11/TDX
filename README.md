@@ -84,6 +84,30 @@ usually means a missing synonym in the dictionary, not a bug in the engine.
 If the mapping is simply wrong, correct it in the results panel. The correction
 is remembered.
 
+## Troubleshooting: the panel doesn't appear
+
+The panel mounts itself; there is no toolbar icon to click. When it doesn't
+show up on a page that should be a ticket form, check, in order:
+
+1. **Did the content script even run in the frame the form is in?** The
+   ticket form usually lives inside a nested `iframe`, and `manifest.json`
+   runs the content scripts in every frame (`all_frames: true`) precisely so
+   that a top-frame-only script doesn't miss it. Open DevTools, switch its
+   context selector to the iframe in question, and look in that frame's own
+   console — a frame that gave up waiting logs
+   `[TDX Autofill] gave up waiting for a ticket form after <n>ms (<url>)`
+   after up to 8 seconds, which tells you the script *did* run there but
+   never saw a form worth mounting into.
+2. **Does the form actually carry TDX's own field markers?** The mount gate
+   (`isTicketForm` in `src/content/mount.ts`) looks for
+   `data-fieldtype`/`data-fieldid` attributes inside *any* `<form>` on the
+   page — a defensible scope, but wider than "the ticket-creation form
+   specifically": it will also mount into any other TDX form that happens to
+   carry those same markers. If neither is present anywhere in the page, the
+   gate is deliberately refusing to mount, on the same evidence `isTicketForm`
+   uses to reject the TDNext shell and unrelated forms — that is the point of
+   the gate, not a bug.
+
 ## The learning layer
 
 Corrections are keyed on a **form signature**: a hash of the sorted set of
@@ -141,8 +165,13 @@ lookup is three elements (hidden id, visible text, reset); writing only the
 visible one leaves the ticket with no service and no error.
 
 **`all_frames: true`.** The ticket form is inside a nested iframe. A top-frame
-script sees nothing. Every frame self-tests with one `querySelector` and all but
-one exit immediately.
+script sees nothing. `isTicketForm` itself is one cheap `querySelector`, but
+the real entry point waits for up to 8 seconds before giving up on a frame
+that never becomes one — a whole-document `MutationObserver` plus a 120ms
+poll, not a single cheap check — because TDX renders the ticket form's markup
+after its own scripts run, so a frame with no form yet is often about to
+become the ticket frame. Every non-ticket frame pays that cost once, for up
+to 8 seconds, and cleans up its observer and timers either way.
 
 **A page-world content script.** `window.CKEDITOR` is invisible to a content
 script's isolated world. The `world: "MAIN"` script exists only to call

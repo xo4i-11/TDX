@@ -17,7 +17,7 @@ import { parseRequestor } from '../data/parser.ts';
 import { SHIPPED_TEMPLATES } from '../data/templates.ts';
 import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
-import { captureLookup } from '../adapters/lookup.ts';
+import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
 } from '../types.ts';
@@ -64,22 +64,28 @@ interface PanelState {
   /** Lives here and only here. Never persisted — see the file banner. */
   requestor: RequestorFields | null;
   warnings: string[];
+  /** The raw paste textarea content, kept here so a re-render (any button click) doesn't wipe it. */
+  pasteText: string;
   templateId: string;
   confirmedService: Captured | null;
   rows: FillRow[];
   showDiagnostics: boolean;
   showSettings: boolean;
+  /** The last action's failure, if any — shown at the top of the body until the next click. */
+  error: string | null;
 }
 
 export async function createPanel({ doc: document, stores, bridge, now = () => new Date() }: CreatePanelOptions): Promise<PanelHandle> {
   const state: PanelState = {
     requestor: null,
     warnings: [],
+    pasteText: '',
     templateId: 'blank',
     confirmedService: null,
     rows: [],
     showDiagnostics: false,
     showSettings: false,
+    error: null,
   };
 
   const controls = harvest(document);
@@ -138,7 +144,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const title = document.createElement('h1');
     title.textContent = 'TDX Autofill';
 
-    const settingsButton = button('Settings', () => { state.showSettings = !state.showSettings; render(); });
+    const settingsButton = button('Settings', () => { state.showSettings = !state.showSettings; return render(); });
     settingsButton.setAttribute('data-settings', '');
     settingsButton.setAttribute('aria-expanded', String(state.showSettings));
 
@@ -146,7 +152,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const collapsed = panel.dataset.collapsed !== 'true';
       panel.dataset.collapsed = String(collapsed);
       await stores.settings.patch({ collapsed });
-      render();
+      await render();
     });
     collapse.setAttribute('data-collapse', '');
 
@@ -157,6 +163,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   async function body(current: Settings): Promise<HTMLElement> {
     const wrap = document.createElement('div');
     wrap.className = 'body';
+
+    if (state.error) {
+      const err = document.createElement('p');
+      err.className = 'missing';
+      err.textContent = state.error;
+      wrap.append(err);
+    }
 
     if (state.showSettings) {
       wrap.append(await renderSettings({ doc: document, stores, onChange: render }));
@@ -181,21 +194,29 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     paste.name = 'paste';
     paste.setAttribute('aria-label', 'Paste the requestor block');
     paste.placeholder = 'Paste the requestor block here';
+    // Every render rebuilds this element from scratch (replaceChildren), so
+    // without restoring the value here a click on any *other* button in the
+    // panel would silently wipe whatever the technician had pasted.
+    paste.value = state.pasteText;
+    paste.addEventListener('input', () => { state.pasteText = paste.value; });
 
     const row = document.createElement('div');
     row.className = 'row';
     const parse = button('Parse', () => {
+      // Covers a programmatic value change with no 'input' event too, not
+      // just the common typing/pasting case the listener above already keeps live.
+      state.pasteText = paste.value;
       const { fields, warnings } = parseRequestor(paste.value);
       state.requestor = fields;
       state.warnings = warnings;
-      render();
+      return render();
     });
     parse.setAttribute('data-parse', '');
 
     const readPage = button('Read from page', () => {
       state.requestor = { ...EMPTY_REQUESTOR, ...(state.requestor ?? {}), ...readRequestorFromPage(document, resolution) };
       state.warnings = missingWarnings(state.requestor);
-      render();
+      return render();
     });
     readPage.setAttribute('data-read-page', '');
     row.append(parse, readPage);
@@ -222,6 +243,20 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
         list.append(dt, dd);
       }
       el.append(list);
+
+      // The parser's warnings are the "see why without a debugger" signal
+      // this task exists to surface — a bare "missing" dd doesn't say *why*
+      // TDX submits a GUID and this paste didn't carry one, for example.
+      if (state.warnings.length) {
+        const warn = document.createElement('ul');
+        warn.className = 'missing';
+        for (const message of state.warnings) {
+          const li = document.createElement('li');
+          li.textContent = message;
+          warn.append(li);
+        }
+        el.append(warn);
+      }
     }
 
     return el;
@@ -239,11 +274,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       if (template.id === state.templateId) option.selected = true;
       select.append(option);
     }
-    select.addEventListener('change', () => {
+    select.addEventListener('change', guarded(() => {
       state.templateId = select.value;
       state.confirmedService = null; // a new template means a new service decision
-      render();
-    });
+      return render();
+    }));
     el.append(select);
     return el;
   }
@@ -271,7 +306,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const suggested = suggestion.service;
       const confirm = button(`Use ${suggested.text}`, () => {
         state.confirmedService = suggested;
-        render();
+        return render();
       });
       confirm.setAttribute('data-confirm-service', '');
       row.append(confirm);
@@ -280,11 +315,16 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const capture = button('Capture service from form', async () => {
       const control = resolution.byField.get('service')?.control;
       const captured = control ? captureLookup(control) : null;
-      if (!captured) return;
+      if (!captured) {
+        // The ordinary case where the technician forgot to set the Service
+        // lookup on the form first — must say so, not do nothing.
+        state.error = 'Could not capture a service: nothing is selected in the Service lookup on the form.';
+        return render();
+      }
       const template = await selectedTemplate();
       await stores.templates.save({ ...template, service: captured });
       state.confirmedService = captured;
-      render();
+      return render();
     });
     capture.setAttribute('data-capture-service', '');
     row.append(capture);
@@ -301,10 +341,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     overwrite.type = 'checkbox';
     overwrite.name = 'overwrite';
     overwrite.checked = Boolean(current.overwrite);
-    overwrite.addEventListener('change', async () => {
+    overwrite.addEventListener('change', guarded(async () => {
       await stores.settings.patch({ overwrite: overwrite.checked });
-      render();
-    });
+      await render();
+    }));
     overwriteLabel.append(overwrite, document.createTextNode(' Overwrite fields that already have a value'));
 
     const row = document.createElement('div');
@@ -323,11 +363,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
         now: now(),
       }, { bridge });
       highlightFilled(state.rows, document);
-      render();
+      return render();
     }, 'primary');
     fill.setAttribute('data-fill', '');
 
-    const diagnostics = button('Diagnostics', () => { state.showDiagnostics = !state.showDiagnostics; render(); });
+    const diagnostics = button('Diagnostics', () => { state.showDiagnostics = !state.showDiagnostics; return render(); });
     diagnostics.setAttribute('data-diagnostics', '');
     diagnostics.setAttribute('aria-expanded', String(state.showDiagnostics));
 
@@ -346,19 +386,30 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     el.append(renderResults(state.rows, {
       doc: document,
       fieldOptions: DICTIONARY.map((d) => ({ key: d.key, label: d.label })),
+      // results.ts invokes this from its own plain `change` listener, outside
+      // panel.ts's button()/guarded() wrapper — it has to catch its own
+      // failures rather than rely on a caller that doesn't know about `state`.
       onCorrect: async (controlKey, fieldKey) => {
-        await stores.learned.set(signature, { [controlKey]: fieldKey });
-        resolution = resolve(controls, { learned: await stores.learned.get(signature) });
-        render();
+        try {
+          await stores.learned.set(signature, { [controlKey]: fieldKey });
+          resolution = resolve(controls, { learned: await stores.learned.get(signature) });
+          await render();
+        } catch (error) {
+          state.error = describeError(error);
+          await render().catch(() => {});
+        }
       },
     }));
 
     const saveExample = button('Save this as an example', async () => {
       const template = await selectedTemplate();
       const service = state.confirmedService ?? template.service;
-      if (!service) return;
+      if (!service) {
+        state.error = 'Could not save an example: no service is confirmed or captured for this template yet.';
+        return render();
+      }
       await stores.examples.add({ description: `${template.summary} ${template.descriptionHtml}`, service });
-      render();
+      return render();
     });
     saveExample.setAttribute('data-save-example', '');
     el.append(saveExample);
@@ -381,19 +432,46 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return p;
   }
 
+  /**
+   * Wraps any DOM event listener so a rejected promise — a store call after
+   * "Extension context invalidated," the routine failure while iterating on
+   * an unpacked extension — becomes visible panel text instead of a silent
+   * no-op plus an unhandled rejection only the browser console ever sees.
+   * All of `button()`'s clicks and the panel's own `change` listeners route
+   * through this, so there is exactly one place that catches.
+   */
+  function guarded(action: () => void | Promise<void>): () => void {
+    return () => {
+      state.error = null;
+      Promise.resolve().then(action).catch((error: unknown) => {
+        state.error = describeError(error);
+        // ponytail: best-effort recovery render. If storage is so completely
+        // gone that even this render's own stores.settings.get() call would
+        // also reject, there is nothing further this layer can do — swallow
+        // rather than compound the console noise with a second unhandled
+        // rejection. Full resilience to a fully-dead storage layer is out of
+        // scope for this round.
+        render().catch(() => {});
+      });
+    };
+  }
+
   function button(text: string, onClick: () => void | Promise<void>, className = ''): HTMLButtonElement {
     const el = document.createElement('button');
     el.type = 'button';
     el.textContent = text;
     if (className) el.className = className;
-    el.addEventListener('click', () => { onClick(); });
+    el.addEventListener('click', guarded(onClick));
     return el;
   }
 
   function onEscape(event: KeyboardEvent): void {
     if (event.key !== 'Escape') return;
     panel.dataset.collapsed = 'true';
-    stores.settings.patch({ collapsed: true });
+    stores.settings.patch({ collapsed: true }).catch((error: unknown) => {
+      state.error = describeError(error);
+      render().catch(() => {});
+    });
   }
   document.addEventListener('keydown', onEscape);
 
@@ -405,6 +483,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     refresh: render,
     destroy() {
       document.removeEventListener('keydown', onEscape);
+      // highlightFilled (results.ts) marks controls on the page itself, not
+      // inside this panel's shadow root — those dashed outlines must not
+      // outlive the panel.
+      for (const el of document.querySelectorAll('.tdxa-touched')) el.classList.remove('tdxa-touched');
       host.remove();
     },
   };
@@ -419,20 +501,21 @@ function readRequestorFromPage(doc: Document, resolution: Resolution): Pick<Requ
   const url = doc.defaultView?.location.href ?? '';
   const fromUrl = url.match(/RequestorUID=([0-9a-f-]{36})/i)?.[1] ?? null;
 
-  const hidden = resolution.byField.get('requestor')?.control.lookup?.hidden ?? null;
+  const control = resolution.byField.get('requestor')?.control ?? null;
+  const hidden = control?.lookup?.hidden ?? null;
   const personGuid = (hidden?.value || fromUrl || null)?.toLowerCase() ?? null;
+  // readLookup already reads the visible caption, falling back to the
+  // data-default blob TDX writes when a widget hasn't initialised yet — the
+  // same logic this file used to duplicate with its own JSON.parse.
+  const name = control ? readLookup(control) || null : null;
 
-  // Same shape as the {caption, subcaption, value} blob TDX writes into
-  // data-default; see adapters/lookup.ts's own defaultCaption for the other
-  // reader of this exact format.
-  let name: string | null = null;
-  try {
-    const parsed = JSON.parse(hidden?.getAttribute('data-default') ?? '[]') as Array<{ caption?: string }>;
-    name = parsed[0]?.caption ?? null;
-  } catch {
-    name = null;
-  }
   return { personGuid, name };
+}
+
+/** Turns a caught rejection into panel text a technician can act on, e.g. "Extension context invalidated." */
+function describeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return `Something went wrong and the action did not complete: ${message}`;
 }
 
 function missingWarnings(fields: RequestorFields | null): string[] {

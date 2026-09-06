@@ -8,6 +8,7 @@
  * here would silently misroute a ticket.
  */
 
+import { SHIPPED_TEMPLATES } from '../data/templates.ts';
 import type { Example, Stores, Template } from '../types.ts';
 
 export interface RenderSettingsOptions {
@@ -61,15 +62,18 @@ async function buildSections(
 
   // Templates
   const templateSection = section(doc, 'Templates');
-  if (templates.length) {
-    for (const template of templates) {
-      templateSection.append(templateRow(doc, template, async () => {
-        await stores.templates.remove(template.id);
-        await rerender();
-        onChange();
-      }));
-    }
-  } else {
+  const isShipped = (id: string): boolean => SHIPPED_TEMPLATES.some((t) => t.id === id);
+  for (const template of templates) {
+    templateSection.append(templateRow(doc, template, isShipped(template.id), async () => {
+      await stores.templates.remove(template.id);
+      await rerender();
+      onChange();
+    }));
+  }
+  // True whether the list is empty, or holds only shipped ids the technician
+  // captured a service onto — "Set up eduroam" here is not a template the
+  // technician authored, so this note is not a lie in either case.
+  if (!templates.some((t) => !isShipped(t.id))) {
     templateSection.append(note(doc, 'No custom templates yet. The shipped ones are always available.'));
   }
 
@@ -132,14 +136,17 @@ async function buildSections(
   return sections;
 }
 
-function templateRow(doc: Document, template: Template, onRemove: () => void): HTMLElement {
+function templateRow(doc: Document, template: Template, isShipped: boolean, onRemove: () => void): HTMLElement {
   const line = doc.createElement('div');
   line.className = 'row';
   const name = doc.createElement('span');
   name.textContent = template.service ? `${template.name} → ${template.service.text}` : template.name;
   const remove = doc.createElement('button');
   remove.type = 'button';
-  remove.textContent = 'Remove';
+  // A shipped template (e.g. "Set up eduroam") that only appears here because
+  // a service was captured onto it isn't something the technician authored —
+  // removing it resets it to the shipped default, it doesn't delete anything.
+  remove.textContent = isShipped ? 'Reset to shipped' : 'Remove';
   remove.setAttribute('data-remove-template', template.id);
   remove.addEventListener('click', onRemove);
   line.append(name, remove);
