@@ -157,6 +157,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   const initialSettings = await stores.settings.get();
   panel.dataset.collapsed = String(Boolean(initialSettings.collapsed));
+  if (initialSettings.lastTemplateId) state.templateId = initialSettings.lastTemplateId;
 
   async function templates(): Promise<Template[]> {
     const custom = await stores.templates.list();
@@ -269,6 +270,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     }
     select.addEventListener('change', guarded(async () => {
       state.templateId = select.value;
+      // Carried to the other form: the ticket created from this template is
+      // resolved with the same one.
+      await stores.settings.patch({ lastTemplateId: select.value });
       if (mode === 'resolve') {
         syncSteps();
         // Canned steps give way to canned steps, so switching jobs re-fills the
@@ -488,6 +492,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   // extension-reloaded case): appending earlier would leave an empty
   // #tdx-autofill-host on the page with no handle to destroy() it, and
   // mount.ts's already-mounted guard would then match that corpse forever.
+  // Resolve mode opens on the template the ticket was created from, so its
+  // canned steps are in the box before autoResolve's first fill.
+  if (mode === 'resolve') state.steps = (await selectedTemplate()).steps ?? '';
+
   document.body.append(host);
   await render();
 

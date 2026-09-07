@@ -42,8 +42,12 @@ clicks TDX's own **Templates > ALL > Ticket Resolved**, waits for the editor to
 receive it, and writes New Status (`Resolved`) and the private-comment checkbox
 (unchecked, so the client can read the reply).
 
-Pick the job from the template list and its steps drop into the **What you
-tried** box; edit them or type your own, click away, and the comment is
+Create and resolve share one template list — the eduroam ticket is resolved
+with the eduroam template — so the resolve page opens on the template the
+create form was left on, with its steps already in the comment.
+
+Pick a different job from the template list and its steps drop into the **What
+you tried** box; edit them or type your own, click away, and the comment is
 written — the red placeholder replaced by your steps, still red. Switching job
 rewrites the comment; text you typed yourself is never overwritten.
 

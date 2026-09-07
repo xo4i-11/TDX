@@ -24,8 +24,8 @@ interface Opened {
   $: <T extends Element = Element>(sel: string) => T | null;
 }
 
-const open = async (doc: Document = loadFixture()): Promise<Opened> => {
-  const stores = createStores(createMemoryArea());
+const open = async (doc: Document = loadFixture(), given?: Stores): Promise<Opened> => {
+  const stores = given ?? createStores(createMemoryArea());
   const panel = await createPanel({ doc, stores, bridge });
   return { doc, stores, $: <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel) };
 };
@@ -392,6 +392,30 @@ function wireTemplateMenu(doc: Document, body = TDX_TEMPLATE_BODY): void {
     });
   }
 }
+
+// Create and resolve share one template list: the eduroam ticket is resolved
+// with the eduroam template, so the resolve page must open on it rather than on
+// Blank, with the comment already written.
+test('the resolve page opens on the template the create form was left on', async () => {
+  const area = createMemoryArea();
+  const create = fixtureWithRequestor();
+  const { $ } = await open(create, createStores(area));
+  pickTemplate(create, $('select[name="template"]'), 'eduroam');
+  await settle();
+
+  const update = loadUpdateFixture();
+  loadEditor(update, '');
+  wireTemplateMenu(update);
+  const resolve = await open(update, createStores(area));
+  await settle();
+
+  const select = must(resolve.$<HTMLSelectElement>('select[name="template"]'), 'template select missing');
+  assert.equal(select.value, 'eduroam', 'the resolve page must open on the last template picked');
+  const steps = must(resolve.$<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  assert.match(steps.value, /Downloaded the eduroam certificate/);
+  const editor = update.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /Downloaded the eduroam certificate/, 'the comment must already carry the steps');
+});
 
 test('on load the panel opens Templates > ALL > Ticket Resolved by itself', async () => {
   const doc = loadUpdateFixture();

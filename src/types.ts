@@ -117,6 +117,12 @@ export interface Template {
 /** The technician's preferences. */
 export interface Settings {
   collapsed?: boolean;
+  /**
+   * The template picked last, on either form. Create and resolve share one
+   * list — the "Reconfigure eduroam" job is the same job on both — so the
+   * resolve page comes up on the template the ticket was created from.
+   */
+  lastTemplateId?: string;
 }
 
 /** One line in the results panel: what happened to one field. */
