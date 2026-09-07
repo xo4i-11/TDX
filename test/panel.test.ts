@@ -52,6 +52,15 @@ function must<T extends Element>(el: T | null, message: string): T {
   return el;
 }
 
+/** Picking a template is the whole interaction: it fills the form. */
+function pickTemplate(doc: Document, select: Element | null, id: string): void {
+  const view = doc.defaultView;
+  assert.ok(view);
+  assert.ok(select instanceof view.HTMLSelectElement, 'template select missing');
+  select.value = id;
+  select.dispatchEvent(new view.Event('change', { bubbles: true }));
+}
+
 function click(el: Element, doc: Document): void {
   const view = doc.defaultView;
   assert.ok(view);
@@ -81,7 +90,7 @@ test('destroy removes the host, the keydown listener, and the highlight outlines
   const panel = await createPanel({ doc, stores, bridge });
   const $ = <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel);
 
-  must($('button[data-fill]'), 'fill button missing').dispatchEvent(new view.Event('click', { bubbles: true }));
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
   assert.ok(doc.querySelectorAll('.tdxa-touched').length > 0, 'fill should have highlighted at least one control');
 
@@ -105,33 +114,37 @@ test('contains the controls in the specified order', async () => {
   const panelEl = must($<HTMLElement>('.panel'), 'panel missing');
   const order = [...panelEl.querySelectorAll<HTMLElement>('[data-section]')]
     .map((el) => el.dataset.section);
-  assert.deepEqual(order, ['requestor', 'template', 'service', 'fill', 'results']);
+  assert.deepEqual(order, ['requestor', 'template']);
 });
 
 
 
 
 
-test('filling writes the five fields and renders one result row per outcome', async () => {
+test('picking a template fills the form, with no Fill click', async () => {
   const { $, doc } = await open(fixtureWithRequestor());
   const view = doc.defaultView;
   assert.ok(view);
 
-  const template = $('select[name="template"]');
-  assert.ok(template instanceof view.HTMLSelectElement, 'template select missing');
-  template.value = 'eduroam';
-  change(template, doc);
-  await settle();
-
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
 
   const ubit = doc.getElementById('attribute2445');
   assert.ok(ubit instanceof view.HTMLInputElement, 'UBITName field missing on the fixture');
   assert.equal(ubit.value, 'duynghie');
-  const results = must($('.results'), 'results list must render after a fill');
-  assert.match(results.textContent ?? '', /Brief Summary/);
-  assert.match(results.textContent ?? '', /Source/);
+  assert.match((doc.getElementById('attribute37') as HTMLInputElement).value, /eduroam/i);
+});
+
+test('picking a different template replaces the previous template values', async () => {
+  const { $, doc } = await open(fixtureWithRequestor());
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
+  await settle();
+  const summary = doc.getElementById('attribute37') as HTMLInputElement;
+  const first = summary.value;
+
+  pickTemplate(doc, $('select[name="template"]'), 'duo');
+  await settle();
+  assert.notEqual(summary.value, first, 'switching templates must rewrite the summary');
 });
 
 test('the panel never submits the form', async () => {
@@ -142,20 +155,13 @@ test('the panel never submits the form', async () => {
   assert.ok(form);
   form.submit = () => { throw new Error('submit() called'); };
   form.addEventListener('submit', () => { throw new Error('submit dispatched'); });
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
 });
 
-test('capturing the service stores the {id,text} pair on the selected template', async () => {
+test('the first fill of a template captures the form service onto it', async () => {
   const { $, doc, stores } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const template = $('select[name="template"]');
-  assert.ok(template instanceof view.HTMLSelectElement, 'template select missing');
-  template.value = 'eduroam';
-  change(template, doc);
-  await settle();
-  click(must($('button[data-capture-service]'), 'capture-service button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
   const saved = (await stores.templates.list()).find((t) => t.id === 'eduroam');
   assert.ok(saved);
@@ -171,22 +177,6 @@ test('capturing the service stores the {id,text} pair on the selected template',
   assert.ok(eduroamButton, 'the captured eduroam template must be listed in Settings');
   assert.equal(eduroamButton.textContent, 'Reset to shipped');
   assert.match(settingsBody.textContent ?? '', /No custom templates yet/);
-});
-
-test('with no examples saved, the service row says template default and suggests nothing', async () => {
-  const { $ } = await open();
-  const service = must($('[data-section="service"]'), 'service section missing');
-  assert.match(service.textContent ?? '', /template default|no service captured/i);
-  assert.equal($('button[data-confirm-service]'), null, 'nothing to confirm with an empty corpus');
-});
-
-test('toggling diagnostics renders the copy-pasteable dump', async () => {
-  const { $, doc } = await open(fixtureWithRequestor());
-  click(must($('button[data-diagnostics]'), 'diagnostics button missing'), doc);
-  await settle();
-  const pre = must($('pre.diagnostics'), 'diagnostics dump must render');
-  assert.match(pre.textContent ?? '', /attribute37/);
-  assert.match(pre.textContent ?? '', /runners-up/);
 });
 
 test('the panel collapses and remembers it', async () => {
@@ -228,7 +218,7 @@ test('a rejected store write surfaces as visible panel text instead of vanishing
   assert.match(errorEl.textContent ?? '', /Extension context invalidated/, 'the rejection must be visible panel text, not just a console error');
 });
 
-test('when the whole storage layer is dead (extension reloaded mid-session), Fill still surfaces a visible error', async () => {
+test('when the whole storage layer is dead (extension reloaded mid-session), picking a template still surfaces a visible error', async () => {
   // The realistic trigger named in review: "Extension context invalidated"
   // kills every chrome.storage.local call in the tab from that instant, not
   // just the one method a handler happens to call — so the recovery render()
@@ -248,14 +238,11 @@ test('when the whole storage layer is dead (extension reloaded mid-session), Fil
   stores.templates.list = dead;
   stores.templates.save = dead;
   stores.templates.remove = dead;
-  stores.examples.list = dead;
-  stores.examples.add = dead;
-  stores.examples.remove = dead;
   stores.learned.get = dead;
   stores.learned.set = dead;
   stores.learned.clearAll = dead;
 
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
 
   const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
@@ -263,121 +250,14 @@ test('when the whole storage layer is dead (extension reloaded mid-session), Fil
   assert.match(errorEl.textContent ?? '', /Extension context invalidated/);
 });
 
-test('capturing a service with nothing selected on the form surfaces a notice instead of doing nothing', async () => {
-  // No lookup/service field at all on this document, so captureLookup has
-  // nothing to read — the ordinary case where the technician forgot to set
-  // the Service field on the form before clicking Capture.
-  const doc = new JSDOM('<body><form></form></body>').window.document;
-  const stores = createStores(createMemoryArea());
-  const panel = await createPanel({ doc, stores, bridge });
-  const $ = <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel);
-
-  click(must($('button[data-capture-service]'), 'capture-service button missing'), doc);
-  await settle();
-
-  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
-  assert.equal(errorEl.hidden, false);
-  assert.match(errorEl.textContent ?? '', /could not capture a service/i);
-});
-
-test('saving an example with no service confirmed surfaces a notice instead of doing nothing', async () => {
-  const { $, doc, stores } = await open();
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
-  await settle();
-  click(must($('button[data-save-example]'), 'save-example button missing'), doc);
-  await settle();
-
-  assert.equal((await stores.examples.list()).length, 0, 'nothing should be saved without a service');
-  const errorEl = must($<HTMLElement>('[data-error]'), 'persistent error element missing');
-  assert.equal(errorEl.hidden, false);
-  assert.match(errorEl.textContent ?? '', /could not save an example/i);
-});
-
-test('saving an example after a fill stores it under the confirmed service', async () => {
-  const { $, doc, stores } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const template = $('select[name="template"]');
-  assert.ok(template instanceof view.HTMLSelectElement, 'template select missing');
-  template.value = 'eduroam';
-  change(template, doc);
-  await settle();
-  click(must($('button[data-capture-service]'), 'capture-service button missing'), doc);
-  await settle();
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
-  await settle();
-  click(must($('button[data-save-example]'), 'save-example button missing'), doc);
-  await settle();
-
-  const examples = await stores.examples.list();
-  assert.equal(examples.length, 1);
-  const [saved] = examples;
-  assert.ok(saved);
-  assert.deepEqual(saved.service, { id: '288', text: 'Personal Device Software and Support / Personal Device Consultation' });
-});
-
-test('the overwrite checkbox round-trips through settings and survives a re-render', async () => {
-  const { $, doc, stores } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const overwrite = $('input[name="overwrite"]');
-  assert.ok(overwrite instanceof view.HTMLInputElement, 'overwrite checkbox missing');
-  assert.equal(overwrite.checked, false);
-
-  overwrite.checked = true;
-  change(overwrite, doc);
-  await settle();
-  assert.equal((await stores.settings.get()).overwrite, true);
-
-  // A different button triggers a full re-render (replaceChildren) — proves
-  // the checked state is read back from settings, not just written once.
-  click(must($('button[data-diagnostics]'), 'diagnostics button missing'), doc);
-  await settle();
-  const overwriteAfter = $('input[name="overwrite"]');
-  assert.ok(overwriteAfter instanceof view.HTMLInputElement, 'overwrite checkbox missing after re-render');
-  assert.equal(overwriteAfter.checked, true);
-});
-
 test('opening Settings renders the real settings view, not an empty panel', async () => {
   const { $, doc } = await open(fixtureWithRequestor());
   click(must($('button[data-settings]'), 'settings button missing'), doc);
   await settle();
-  assert.ok($('input[name="threshold"]'), 'threshold input must render');
+  assert.ok($('input[name="templateName"]'), 'the template name field must render');
   assert.ok($('button[data-clear-learned]'), 'clear-learned button must render');
 });
 
-test('correcting a mapping in the results panel is learned and immediately re-resolves', async () => {
-  const { $, doc, stores } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
-  await settle();
-
-  const sourceRow = must($('li[data-field="source"]'), 'source result row missing');
-  const correction = sourceRow.querySelector('select');
-  assert.ok(correction, 'correction dropdown missing on the source row');
-  correction.value = 'briefSummary'; // deliberately wrong; only the wiring is under test
-  change(correction, doc);
-  await settle();
-
-  const signature = formSignature(doc);
-  assert.deepEqual(Object.values(await stores.learned.get(signature)), ['briefSummary'], 'the correction must be written to the learned store');
-
-  // Proves resolution was actually rebuilt from the new learned map, not just
-  // that the store was written: the diagnostic dump reflects tier 0 now.
-  click(must($('button[data-diagnostics]'), 'diagnostics button missing'), doc);
-  await settle();
-  const dump = must($('pre.diagnostics'), 'diagnostics dump must render').textContent ?? '';
-  assert.match(dump, /learned from a previous correction on this form/);
-});
-
-// TDX is ASP.NET WebForms: an AutoPostBack select or a cascading Service ->
-// Service Offering lookup replaces whole DOM subtrees, and the adapters
-// themselves dispatch the change events that trigger those partial postbacks.
-// If Fill reused the resolution captured at mount, it would write into the
-// detached node it still held, read that same node back, and report "filled"
-// for a value that is not on the form — the one silent failure the read-back
-// discipline cannot see.
 test('a fill after the form was re-rendered writes into the live control, not the detached one it was holding', async () => {
   const { $, doc } = await open(fixtureWithRequestor());
   const view = doc.defaultView;
@@ -389,7 +269,7 @@ test('a fill after the form was re-rendered writes into the live control, not th
   before.replaceWith(before.cloneNode(true));
   assert.equal(before.isConnected, false, 'baseline: the mount-time element is detached');
 
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
 
   const after = doc.getElementById('attribute2445');
@@ -422,11 +302,27 @@ test('the UBITName is read off the requestor card at mount, with no paste and no
   assert.match(parsed, /b067308b-2198-ef11-9c36-f06ebc4e4310/, 'GUID not detected');
 });
 
+test('a requestor card that appears after mount is still picked up', async () => {
+  const doc = loadFixture();
+
+  const { $ } = await open(doc);
+  assert.doesNotMatch(must($('.parsed'), 'parsed list missing').textContent ?? '', /duynghie/, 'no card yet');
+
+  const card = doc.createElement('div');
+  card.innerHTML = CARD;
+  doc.body.append(card);
+  // waitFor polls every 120ms; the observer is bound to this frame only.
+  await new Promise((r) => setTimeout(r, 300));
+  await settle();
+
+  assert.match(must($('.parsed'), 'parsed list missing').textContent ?? '', /duynghie/, 'late card never read');
+});
+
 test('a detected UBITName is filled instead of the "Unknown" placeholder', async () => {
   const doc = fixtureWithRequestor();
 
   const { $ } = await open(doc);
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  pickTemplate(doc, $('select[name="template"]'), 'eduroam');
   await settle();
   const ubit = doc.querySelector<HTMLInputElement>('#attribute2445');
   assert.ok(ubit, 'UBITName input missing from the fixture');

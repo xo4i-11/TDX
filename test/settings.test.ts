@@ -16,12 +16,13 @@ const rethrowing = (action: () => void | Promise<void>) => (): void => {
   void Promise.resolve().then(action).catch((error: unknown) => { throw error; });
 };
 
-const setup = async (seed?: (stores: Stores) => Promise<void>) => {
-  const doc = new JSDOM('<body></body>').window.document;
-  const stores = createStores(createMemoryArea());
+const setup = async (seed?: (stores: Stores) => Promise<void>, given?: Stores) => {
+  const win = new JSDOM('<body></body>').window;
+  const doc = win.document;
+  const stores = given ?? createStores(createMemoryArea());
   await seed?.(stores);
   const el = await renderSettings({ doc, stores, guarded: rethrowing });
-  return { doc, stores, el };
+  return { doc, stores, el, win };
 };
 
 function click(doc: Document, el: Element): void {
@@ -35,20 +36,6 @@ function change(doc: Document, el: Element): void {
   assert.ok(view);
   el.dispatchEvent(new view.Event('change', { bubbles: true }));
 }
-
-test('shows the current threshold and persists a change', async () => {
-  const { el, stores, doc } = await setup();
-  const win = doc.defaultView;
-  assert.ok(win);
-  const input = el.querySelector('input[name="threshold"]');
-  assert.ok(input instanceof win.HTMLInputElement);
-  assert.equal(Number(input.value), 0.35);
-
-  input.value = '0.5';
-  change(doc, input);
-  await new Promise((r) => setImmediate(r));
-  assert.equal((await stores.settings.get()).threshold, 0.5);
-});
 
 test('lists stored templates and can remove one', async () => {
   const { el, stores, doc } = await setup(async (s) => {
@@ -101,39 +88,19 @@ test('clearing learned mappings empties the store', async () => {
   assert.deepEqual(await stores.learned.get('sig'), {});
 });
 
-test('saved examples can be listed and deleted, because a wrong one poisons retrieval', async () => {
-  const { el, stores, doc } = await setup(async (s) => {
-    await s.examples.add({ description: 'bad example', service: { id: '1', text: 'Wrong' } });
-  });
-  assert.match(el.textContent ?? '', /bad example/);
-
-  const [example] = await stores.examples.list();
-  assert.ok(example);
-  const button = el.querySelector(`button[data-remove-example="${example.id}"]`);
-  assert.ok(button);
-  click(doc, button);
-  await new Promise((r) => setImmediate(r));
-  assert.deepEqual(await stores.examples.list(), []);
-});
-
-// A change made through renderSettings() must reach the same underlying
-// storage area a second view over that area would see — proves the store
-// writes are real, not held only in the first view's closure.
 test('a store write from one rendered view is visible to a fresh view over the same area', async () => {
-  const area: StorageArea = createMemoryArea();
+  const area = createMemoryArea();
   const storesA = createStores(area);
-  const docA = new JSDOM('<body></body>').window.document;
-  const elA = await renderSettings({ doc: docA, stores: storesA, guarded: rethrowing });
-  const winA = docA.defaultView;
+  const { doc: docA, el: elA, win: winA } = await setup(undefined, storesA);
   assert.ok(winA);
-  const inputA = elA.querySelector('input[name="threshold"]');
-  assert.ok(inputA instanceof winA.HTMLInputElement);
-  inputA.value = '0.8';
-  change(docA, inputA);
+  const nameInput = elA.querySelector('input[name="templateName"]');
+  assert.ok(nameInput instanceof winA.HTMLInputElement);
+  nameInput.value = 'Shared write';
+  const add = elA.querySelector('button[data-add-template]');
+  assert.ok(add);
+  click(docA, add);
   await new Promise((r) => setImmediate(r));
 
   const storesB = createStores(area);
-  assert.equal((await storesB.settings.get()).threshold, 0.8);
+  assert.ok((await storesB.templates.list()).some((t) => t.name === 'Shared write'));
 });
-
-

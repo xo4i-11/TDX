@@ -28,7 +28,7 @@ const setup = (doc: Document = loadFixture()) => {
 };
 
 const row = (rows: FillRow[], key: string): FillRow | undefined => rows.find((r) => r.fieldKey === key);
-const settings = (over: Partial<Settings> = {}): Settings => ({ threshold: 0.35, overwrite: false, ...over });
+const settings = (over: Partial<Settings> = {}): Settings => ({ ...over });
 
 const inputEl = (doc: Document, id: string): HTMLInputElement => doc.getElementById(id) as HTMLInputElement;
 const selectEl = (doc: Document, id: string): HTMLSelectElement => doc.getElementById(id) as HTMLSelectElement;
@@ -53,7 +53,7 @@ test('the five fields are written with the right values', async () => {
   // nothing about the write path. overwrite:true forces the write so the
   // visible input (which starts empty) can only read back SERVICE.text if
   // fillLookup actually ran.
-  const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }) }, { bridge });
+  const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() }, { bridge });
   assert.equal(inputEl(doc, 'attribute2445').value, 'duynghie');
   assert.match(inputEl(doc, 'attribute37').value, /eduroam/i);
   const source = selectEl(doc, 'attribute371');
@@ -85,18 +85,10 @@ test('ACCEPTANCE: the extension never calls submit', async () => {
   await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() }, { bridge });
 });
 
-test('a non-empty control is preserved by default', async () => {
+test('an existing value is replaced, so switching templates rewrites the form', async () => {
   const { doc, resolution } = setup();
   inputEl(doc, 'attribute2445').value = 'someoneelse';
   const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() }, { bridge });
-  assert.equal(row(rows, 'ubitName')?.status, 'preserved');
-  assert.equal(inputEl(doc, 'attribute2445').value, 'someoneelse');
-});
-
-test('the overwrite toggle replaces an existing value', async () => {
-  const { doc, resolution } = setup();
-  inputEl(doc, 'attribute2445').value = 'someoneelse';
-  const rows = await runFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }) }, { bridge });
   assert.equal(row(rows, 'ubitName')?.status, 'filled');
   assert.equal(inputEl(doc, 'attribute2445').value, 'duynghie');
 });
@@ -163,7 +155,7 @@ test('an adapter failure surfaces as failed with the mismatch, not as success', 
 // detached node — the one silent failure read-back structurally cannot see.
 test('a write row whose control left the page is refused, not written and reported filled', async () => {
   const { doc, resolution } = setup();
-  const rows = planFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }) });
+  const rows = planFill({ resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings() });
   const ubit = row(rows, 'ubitName');
   assert.ok(ubit?.control, 'ubitName must be a write row with a control');
 
@@ -184,7 +176,7 @@ test('the service offering is written after the service', async () => {
   const { doc, resolution } = setup();
   const rows = await runFill({
     resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, serviceOffering: OFFERING,
-    settings: settings({ overwrite: true }),
+    settings: settings(),
   }, { bridge });
   assert.equal(row(rows, 'serviceOffering')?.status, 'filled');
   assert.equal(inputEl(doc, 'attribute1932').value, OFFERING.id);
@@ -197,7 +189,7 @@ test('the service offering is written after the service', async () => {
 test('no captured offering is a skip, not a needs-confirm', async () => {
   const { resolution } = setup();
   const rows = await runFill({
-    resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }),
+    resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings(),
   }, { bridge });
   assert.equal(row(rows, 'serviceOffering')?.status, 'skipped');
 });
@@ -209,7 +201,7 @@ test('a control detached by an earlier write is re-found rather than abandoned',
   const { doc, resolution } = setup();
   const rows = planFill({
     resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, serviceOffering: OFFERING,
-    settings: settings({ overwrite: true }),
+    settings: settings(),
   });
 
   // Stand in for the partial postback: swap the offering's whole subtree for a copy.
@@ -255,14 +247,13 @@ test('resolve mode sets the status, unchecks private, and fills the comment', as
   assert.match(textareaEl(doc, 'Comments_Content').value, /<li>Removed the stale profile<\/li>/);
 });
 
-// Falsifiability: the private checkbox starts checked. If planFill applied its
-// normal preserve rule to checkboxes, this would come back 'preserved' with
-// overwrite off and the comment would go out invisible to the client.
-test('the private checkbox is unchecked even with overwrite off', async () => {
+// Falsifiability: the private checkbox starts checked, so an unchecked box can
+// only mean planFill wrote it.
+test('the private checkbox is unchecked, so the comment is visible to the client', async () => {
   const { doc, resolution } = resolveSetup();
   assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, true, 'fixture must start checked');
   await runFill({
-    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings({ overwrite: false }),
+    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(),
     resolvedCommentHtml: RESOLVED_BODY, steps: 'Rebooted',
   }, { bridge });
   assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);

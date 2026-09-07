@@ -18,7 +18,6 @@ import { harvest } from '../src/core/harvest.ts';
 import { resolve } from '../src/core/resolve.ts';
 import { formSignature } from '../src/core/signature.ts';
 import { parseRequestor } from '../src/data/parser.ts';
-import { retrieve } from '../src/service/retriever.ts';
 import { runFill } from '../src/fill/policy.ts';
 import { SHIPPED_TEMPLATES } from '../src/data/templates.ts';
 import { createStores, createMemoryArea } from '../src/data/stores.ts';
@@ -60,10 +59,7 @@ test('ACCEPTANCE: a full parse to fill cycle makes no network request', async ()
   formSignature(doc);
 
   const stores = createStores(createMemoryArea());
-  await stores.settings.patch({ overwrite: true });
-  await stores.examples.add({ description: 'eduroam profile removed and CAT tool run', service: { id: '288', text: 'Personal Device Consultation' } });
-  const examples = await stores.examples.list();
-  const ranked = retrieve('set up eduroam on a laptop', examples);
+  await stores.settings.patch({ collapsed: true });
 
   const template = SHIPPED_TEMPLATES.find((t) => t.id === 'eduroam');
   assert.ok(template, 'fixture template "eduroam" must exist for this test');
@@ -72,7 +68,7 @@ test('ACCEPTANCE: a full parse to fill cycle makes no network request', async ()
     resolution,
     requestor,
     template,
-    service: ranked[0]?.service ?? null,
+    service: template.service,
     settings: await stores.settings.get(),
   }, { bridge: { async setEditorData() { return { ok: false, detail: 'no CKEDITOR in jsdom' }; } } });
 

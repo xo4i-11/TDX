@@ -8,10 +8,8 @@ const fresh = () => createStores(createMemoryArea());
 test('settings start at their defaults and patch without clobbering', async () => {
   const stores = fresh();
   assert.deepEqual(await stores.settings.get(), DEFAULT_SETTINGS);
-  await stores.settings.patch({ overwrite: true });
-  const after = await stores.settings.get();
-  assert.equal(after.overwrite, true);
-  assert.equal(after.threshold, DEFAULT_SETTINGS.threshold, 'unpatched keys must survive');
+  await stores.settings.patch({ collapsed: true });
+  assert.equal((await stores.settings.get()).collapsed, true);
 });
 
 test('templates round-trip and are replaced by id, not duplicated', async () => {
@@ -62,21 +60,6 @@ test('mutating the record returned by save() must not affect what is stored', as
   assert.equal(again?.name, 'One', 'the value passed to set() must be cloned, not stored by reference');
 });
 
-test('templates and examples are stored under different keys', async () => {
-  const stores = fresh();
-  await stores.templates.save({ id: 't', name: 'T', summary: '', descriptionHtml: '', service: null });
-  assert.deepEqual(await stores.examples.list(), []);
-});
-
-test('examples get an id and a timestamp on add', async () => {
-  const stores = fresh();
-  await stores.examples.add({ description: 'eduroam wifi', service: { id: '288', text: 'Consultation' } });
-  const [example] = await stores.examples.list();
-  assert.ok(example?.id);
-  assert.ok(example?.savedAt);
-  assert.equal(example?.description, 'eduroam wifi');
-});
-
 test('learned mappings are keyed by form signature and clearable in bulk', async () => {
   const stores = fresh();
   await stores.learned.set('abc123', { attribute37: 'briefSummary' });
@@ -90,15 +73,15 @@ test('learned mappings are keyed by form signature and clearable in bulk', async
 test('learned.clearAll only clears the learned namespace', async () => {
   const stores = fresh();
   await stores.templates.save({ id: 't', name: 'T', summary: '', descriptionHtml: '', service: null });
-  await stores.settings.patch({ overwrite: true });
+  await stores.settings.patch({ collapsed: true });
   await stores.learned.set('sig', { a: 'b' });
   await stores.learned.clearAll();
   assert.equal((await stores.templates.list()).length, 1);
-  assert.equal((await stores.settings.get()).overwrite, true);
+  assert.equal((await stores.settings.get()).collapsed, true);
 });
 
 test('no store persists requestor data', async () => {
   // Requestor fields include student records and live in panel memory only.
   const stores = fresh();
-  assert.deepEqual(Object.keys(stores).sort(), ['examples', 'learned', 'settings', 'templates']);
+  assert.deepEqual(Object.keys(stores).sort(), ['learned', 'settings', 'templates']);
 });

@@ -8,13 +8,12 @@
  * records; they live in panel memory (src/ui/panel.ts) and die with the page.
  */
 
-import type { Example, LearnedStore, Settings, SettingsStore, Stores, Template } from '../types.ts';
+import type { LearnedStore, Settings, SettingsStore, Stores, Template } from '../types.ts';
 
-export const DEFAULT_SETTINGS: Settings = { threshold: 0.35, overwrite: false };
+export const DEFAULT_SETTINGS: Settings = {};
 
 const KEYS = {
   templates: 'tdxa.templates',
-  examples: 'tdxa.examples',
   learned: 'tdxa.learned',
   settings: 'tdxa.settings',
 } as const;
@@ -44,7 +43,7 @@ function writeValue(area: StorageArea, key: string, value: unknown): Promise<voi
   return area.set({ [key]: value });
 }
 
-/** A save-by-id, remove-by-id list, generic over templates and examples alike. */
+/** A save-by-id, remove-by-id list. */
 function collection<T extends { id: string }>(area: StorageArea, key: string) {
   return {
     async list(): Promise<T[]> {
@@ -109,17 +108,9 @@ export function createStores(area: StorageArea | undefined = defaultArea()): Sto
   }
 
   const templates = collection<Template>(area, KEYS.templates);
-  const examples = collection<Example>(area, KEYS.examples);
 
   return {
     templates,
-    examples: {
-      list: examples.list,
-      remove: examples.remove,
-      async add(example) {
-        return examples.save({ id: newId(), savedAt: new Date().toISOString(), ...example });
-      },
-    },
     learned: learnedStore(area),
     settings: settingsStore(area),
   };

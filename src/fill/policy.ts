@@ -73,18 +73,8 @@ export function planFill({
       continue;
     }
 
-    const existing = currentValue(match.control);
-    // alwaysWrite fields skip this: their current value is the form's own
-    // state, not typed content. Preserving would leave the private-comment box
-    // checked and the status untouched, which is the whole resolve action.
-    if (existing && !settings.overwrite && !def.alwaysWrite) {
-      rows.push({
-        ...report(def, 'preserved', `already set to ${JSON.stringify(truncate(existing))}; enable overwrite to replace`),
-        control: match.control,
-        confidence: match.confidence,
-      });
-      continue;
-    }
+    // Picking a template always writes: switching templates has to replace the
+    // previous one's values, so there is no preserve-versus-overwrite choice.
 
     rows.push({
       fieldKey, label: def.label, action: 'write', value: outcome.value,

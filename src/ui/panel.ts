@@ -6,24 +6,22 @@
  */
 
 import { PANEL_CSS } from './panel.css.ts';
-import { renderResults, highlightFilled } from './results.ts';
-import { formatDiagnostics, renderDiagnostics } from './diagnostics.ts';
+import { highlightFilled } from './results.ts';
 import { renderSettings } from './settings.ts';
 import { harvest } from '../core/harvest.ts';
 import { resolve } from '../core/resolve.ts';
 import { formSignature } from '../core/signature.ts';
 import { pageMode } from '../core/pagemode.ts';
-import { DICTIONARY } from '../core/dictionary.ts';
 import { readRequestorFromPage, missingWarnings } from '../data/requestor-page.ts';
 import { EMPTY_REQUESTOR, SHIPPED_TEMPLATES } from '../data/templates.ts';
-import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
+import { waitFor } from '../adapters/wait.ts';
 import { readRichTextHtml } from '../adapters/richtext.ts';
 import { isBlankHtml, toStepsTemplate } from '../data/resolved.ts';
 import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
 import type {
-  Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
+  Bridge, FillRow, RequestorFields, Resolution, Stores, Template,
 } from '../types.ts';
 
 // SHIPPED_TEMPLATES always ships with a 'blank' entry — this only exists to
@@ -31,6 +29,9 @@ import type {
 // actually reached.
 const FALLBACK_TEMPLATE: Template = SHIPPED_TEMPLATES[0]
   ?? { id: 'blank', name: 'Blank', summary: '', descriptionHtml: '', service: null };
+
+/** How long to keep watching for the Requestor card TDX renders around the form. */
+const CARD_TIMEOUT_MS = 15000;
 
 export interface CreatePanelOptions {
   /** The document the panel's own elements are created in — never the bare global. */
@@ -53,20 +54,11 @@ export interface PanelHandle {
   destroy: () => void;
 }
 
-/** What the service section decided to show: a confident local-corpus match, a template default, or nothing. */
-type ServiceSuggestion =
-  | { kind: 'suggested'; service: Captured; score: number; evidence: Ranked['evidence'] }
-  | { kind: 'template'; service: Captured; score: number }
-  | { kind: 'none'; service: null; score: number };
-
 interface PanelState {
   /** Lives here and only here. Never persisted — see the file banner. */
   requestor: RequestorFields | null;
   warnings: string[];
   templateId: string;
-  confirmedService: Captured | null;
-  /** The Service Offering under confirmedService, captured with it. */
-  confirmedOffering: Captured | null;
   rows: FillRow[];
   /** Resolve mode: the troubleshooting steps box, kept here so a re-render does not wipe it. */
   steps: string;
@@ -78,7 +70,6 @@ interface PanelState {
   loadedTemplateHtml: string | null;
   /** What the automatic template load did, shown in the panel so a silent miss is impossible. */
   autoTemplate: string;
-  showDiagnostics: boolean;
   showSettings: boolean;
 }
 
@@ -87,13 +78,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     requestor: null,
     warnings: [],
     templateId: 'blank',
-    confirmedService: null,
-    confirmedOffering: null,
     rows: [],
     steps: '',
     loadedTemplateHtml: null,
     autoTemplate: '',
-    showDiagnostics: false,
     showSettings: false,
   };
 
@@ -145,7 +133,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   // A persistent DOM node, owned here rather than rebuilt by render()/body().
   // The whole point: render() itself touches storage (stores.settings.get(),
-  // then templates()/serviceSuggestion()'s several more calls) and can fail
+  // then templates()' several more calls) and can fail
   // for the exact same reason the action that triggered it failed — "every
   // chrome.storage.local call is dead" is a total outage, not a one-method
   // failure, once an unpacked extension is reloaded mid-session. Writing
@@ -182,22 +170,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return (await templates()).find((t) => t.id === state.templateId) ?? FALLBACK_TEMPLATE;
   }
 
-  async function serviceSuggestion(): Promise<ServiceSuggestion> {
-    const template = await selectedTemplate();
-    const examples = await stores.examples.list();
-    const current = await stores.settings.get();
-    const ranked = retrieve(`${template.summary} ${template.descriptionHtml}`, examples);
-    const top = ranked[0];
-    if (top && top.score >= current.threshold) {
-      return { kind: 'suggested', service: top.service, score: top.score, evidence: top.evidence };
-    }
-    if (template.service) return { kind: 'template', service: template.service, score: top?.score ?? 0 };
-    return { kind: 'none', service: null, score: top?.score ?? 0 };
-  }
-
   async function render(): Promise<void> {
-    const current = await stores.settings.get();
-    panel.replaceChildren(errorEl, header(), await body(current));
+    panel.replaceChildren(errorEl, header(), await body());
   }
 
   function header(): HTMLElement {
@@ -222,7 +196,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return head;
   }
 
-  async function body(current: Settings): Promise<HTMLElement> {
+  async function body(): Promise<HTMLElement> {
     const wrap = document.createElement('div');
     wrap.className = 'body';
 
@@ -232,16 +206,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     }
 
     if (mode === 'resolve') {
-      wrap.append(requestorSection(), await templateSection(), stepsSection(), resolvedSection(), fillSection(current), resultsSection());
+      wrap.append(requestorSection(), await templateSection(), stepsSection(), resolvedSection());
     } else {
-      wrap.append(requestorSection(), await templateSection(), await serviceSection(), fillSection(current), resultsSection());
-    }
-
-    if (state.showDiagnostics) {
-      wrap.append(renderDiagnostics(
-        formatDiagnostics(resolution, { signature, url: document.defaultView?.location.href ?? '' }),
-        { doc: document },
-      ));
+      wrap.append(requestorSection(), await templateSection());
     }
     return wrap;
   }
@@ -302,8 +269,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     }
     select.addEventListener('change', guarded(async () => {
       state.templateId = select.value;
-      state.confirmedService = null; // a new template means a new service decision
-      state.confirmedOffering = null;
       if (mode === 'resolve') {
         syncSteps();
         // Canned steps give way to canned steps, so switching jobs re-fills the
@@ -312,75 +277,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
         if (!state.steps.trim() || await isCannedSteps(state.steps)) {
           state.steps = (await selectedTemplate()).steps ?? '';
         }
-        await render();
-        // The comment already holds the previous job's steps; leaving it there
-        // until the next blur would be a resolution describing the wrong work.
-        return fillNow();
       }
-      return render();
+      await render();
+      // Picking a template is the whole interaction: it fills, and picking
+      // another one re-fills with that template's saved values.
+      return fillNow();
     }));
     el.append(select);
-    return el;
-  }
-
-  async function serviceSection(): Promise<HTMLElement> {
-    const el = sectionEl('service', 'Service');
-    const suggestion = await serviceSuggestion();
-    const chosen = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
-
-    const line = document.createElement('p');
-    line.className = 'note';
-    if (chosen) {
-      const offering = state.confirmedOffering ?? (state.confirmedService ? null : (await selectedTemplate()).serviceOffering ?? null);
-      const pair = offering ? `${chosen.text} / ${offering.text} (ids ${chosen.id} / ${offering.id})` : `${chosen.text} (id ${chosen.id})`;
-      line.textContent = `${pair} — ${state.confirmedService ? 'confirmed' : 'template default'}`;
-    } else if (suggestion.kind === 'suggested') {
-      line.textContent = `Suggested: ${suggestion.service.text} — ${suggestion.score} similarity, from ${suggestion.evidence.length} prior example(s). Confirm to use it.`;
-    } else {
-      line.textContent = 'No service captured for this template and no confident match. Set it on the form by hand, then capture it.';
-    }
-    el.append(line);
-
-    const row = document.createElement('div');
-    row.className = 'row';
-
-    if (suggestion.kind === 'suggested' && !state.confirmedService) {
-      const suggested = suggestion.service;
-      const confirm = button(`Use ${suggested.text}`, () => {
-        state.confirmedService = suggested;
-        return render();
-      });
-      confirm.setAttribute('data-confirm-service', '');
-      row.append(confirm);
-    }
-
-    const capture = button('Capture service from form', async () => {
-      // The form is the source of truth for both halves and TDX rebuilds the
-      // offering lookup when Service changes, so read the live DOM, not the
-      // resolution captured at mount.
-      await rescan();
-      const control = resolution.byField.get('service')?.control;
-      const captured = control ? captureLookup(control) : null;
-      if (!captured) {
-        // The ordinary case where the technician forgot to set the Service
-        // lookup on the form first — must say so, not do nothing.
-        setError('Could not capture a service: nothing is selected in the Service lookup on the form.');
-        return render();
-      }
-      // Optional half: "Wi-Fi / Wi-Fi Issue" is a Service plus an Offering,
-      // but plenty of services have no offering under them at all.
-      const offeringControl = resolution.byField.get('serviceOffering')?.control;
-      const offering = offeringControl ? captureLookup(offeringControl) : null;
-      const template = await selectedTemplate();
-      await stores.templates.save({ ...template, service: captured, serviceOffering: offering });
-      state.confirmedService = captured;
-      state.confirmedOffering = offering;
-      return render();
-    });
-    capture.setAttribute('data-capture-service', '');
-    row.append(capture);
-
-    el.append(row);
     return el;
   }
 
@@ -418,20 +321,39 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return el;
   }
 
+  /**
+   * A template with no service yet learns one from the form: whatever is in the
+   * Service lookup when it is first filled is saved onto the template, so the
+   * next pick of that template sets Service itself. Nothing is guessed — an
+   * empty lookup teaches nothing.
+   */
+  async function captureServiceIfNew(template: Template): Promise<Template> {
+    if (template.service) return template;
+    const captured = resolution.byField.get('service')?.control;
+    const service = captured ? captureLookup(captured) : null;
+    if (!service) return template;
+    const offeringControl = resolution.byField.get('serviceOffering')?.control;
+    const saved = { ...template, service, serviceOffering: offeringControl ? captureLookup(offeringControl) : null };
+    await stores.templates.save(saved);
+    return saved;
+  }
+
   /** One fill, whether the button or the automatic flow asked for it. */
   async function fillNow(): Promise<void> {
     // Never fill through the resolution captured at mount — see rescan().
     syncSteps();
     await rescan();
-    const template = await selectedTemplate();
-    const suggestion = await serviceSuggestion();
-    const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
-    const serviceOffering = state.confirmedOffering ?? (state.confirmedService ? null : template.serviceOffering ?? null);
+    const template = await captureServiceIfNew(await selectedTemplate());
+    const service = template.service;
+    const serviceOffering = template.serviceOffering ?? null;
     const current = await stores.settings.get();
     // The body in the editor is the one this panel just loaded, not something
     // the technician typed, so replacing it is not clobbering their work —
     // and without this the comment row preserves and writes nothing.
-    const settings = state.loadedTemplateHtml ? { ...current, overwrite: true } : current;
+    // Always overwrite: picking a template is an explicit "put this template's
+    // values on the form", and switching templates has to replace the last
+    // one's values rather than preserve them.
+    const settings = { ...current, overwrite: true };
     state.rows = await runFill({
       resolution,
       mode,
@@ -500,76 +422,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     await fillNow();
   }
 
-  function fillSection(current: Settings): HTMLElement {
-    const el = sectionEl('fill', 'Fill');
-
-    const overwriteLabel = document.createElement('label');
-    const overwrite = document.createElement('input');
-    overwrite.type = 'checkbox';
-    overwrite.name = 'overwrite';
-    overwrite.checked = Boolean(current.overwrite);
-    overwrite.addEventListener('change', guarded(async () => {
-      await stores.settings.patch({ overwrite: overwrite.checked });
-      await render();
-    }));
-    overwriteLabel.append(overwrite, document.createTextNode(' Overwrite fields that already have a value'));
-
-    const row = document.createElement('div');
-    row.className = 'row';
-
-    const fill = button('Fill form', () => fillNow(), 'primary');
-    fill.setAttribute('data-fill', '');
-
-    const diagnostics = button('Diagnostics', () => { state.showDiagnostics = !state.showDiagnostics; return render(); });
-    diagnostics.setAttribute('data-diagnostics', '');
-    diagnostics.setAttribute('aria-expanded', String(state.showDiagnostics));
-
-    row.append(fill, diagnostics);
-    el.append(overwriteLabel, row, noteEl('Never submits. Review the form before saving the ticket.'));
-    return el;
-  }
-
-  function resultsSection(): HTMLElement {
-    const el = sectionEl('results', 'Results');
-    if (!state.rows.length) {
-      el.append(noteEl('No fill run yet.'));
-      return el;
-    }
-
-    el.append(renderResults(state.rows, {
-      doc: document,
-      fieldOptions: DICTIONARY.map((d) => ({ key: d.key, label: d.label })),
-      // results.ts invokes this from its own plain `change` listener, outside
-      // panel.ts's button()/guarded() wrapper — it has to catch its own
-      // failures rather than rely on a caller that doesn't know about `state`.
-      onCorrect: async (controlKey, fieldKey) => {
-        clearError();
-        try {
-          await stores.learned.set(signature, { [controlKey]: fieldKey });
-          resolution = resolve(controls, { learned: await stores.learned.get(signature) });
-          await render();
-        } catch (error) {
-          setError(describeError(error));
-          await render().catch(() => {});
-        }
-      },
-    }));
-
-    const saveExample = button('Save this as an example', async () => {
-      const template = await selectedTemplate();
-      const service = state.confirmedService ?? template.service;
-      if (!service) {
-        setError('Could not save an example: no service is confirmed or captured for this template yet.');
-        return render();
-      }
-      await stores.examples.add({ description: `${template.summary} ${template.descriptionHtml}`, service });
-      return render();
-    });
-    saveExample.setAttribute('data-save-example', '');
-    el.append(saveExample);
-    return el;
-  }
-
   function sectionEl(name: string, title: string): HTMLElement {
     const el = document.createElement('section');
     el.dataset.section = name;
@@ -600,7 +452,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       Promise.resolve().then(action).catch((error: unknown) => {
         // Written straight into the DOM first — not through state+render —
         // because render() is itself several storage round trips deep
-        // (settings.get, then templates()/serviceSuggestion()'s more calls)
+        // (settings.get, then templates()' more calls)
         // and a total storage outage (the realistic trigger here) kills all
         // of them, not just the one this action happened to call.
         setError(describeError(error));
@@ -638,6 +490,26 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   // mount.ts's already-mounted guard would then match that corpse forever.
   document.body.append(host);
   await render();
+
+  // The card holding the email, the UBITName and the person number is
+  // rendered by the page *around* the form, and usually after this frame's
+  // form is already up — so the read at mount above catches only the name and
+  // the GUID, which come from the lookup and the URL. Watch for the card
+  // instead of reporting "no UBITName found" forever.
+  // ponytail: waitFor's poll does the work here (the observer is bound to this
+  // frame's document, the card is in another), and it gives up quietly.
+  if (!state.requestor?.ubitName) {
+    waitFor(() => {
+      const found = readRequestorFromPage(document, resolution);
+      return found.ubitName || found.email || found.personNumber ? found : null;
+    }, { timeout: CARD_TIMEOUT_MS, root: document, win: document.defaultView ?? undefined })
+      .then((found) => {
+        state.requestor = { ...(state.requestor ?? EMPTY_REQUESTOR), ...found };
+        state.warnings = missingWarnings(state.requestor);
+        return render();
+      })
+      .catch(() => {}); // card never showed; the panel already lists what is missing
+  }
 
   // Deliberately not awaited: mounting must not wait on TDX's own fetch, and
   // every failure inside is turned into visible panel text by guarded().

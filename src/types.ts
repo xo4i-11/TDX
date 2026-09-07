@@ -114,25 +114,8 @@ export interface Template {
   steps?: string;
 }
 
-/** One past ticket the technician confirmed, used to suggest a service later. */
-export interface Example {
-  id: string;
-  savedAt: string;
-  description: string;
-  service: Captured;
-}
-
-/** A service the retriever thinks fits, with how well and which past tickets say so. */
-export interface Ranked {
-  service: Captured;
-  score: number;
-  evidence: { exampleId: string; snippet: string; terms: string[] }[];
-}
-
 /** The technician's preferences. */
 export interface Settings {
-  threshold: number;
-  overwrite: boolean;
   collapsed?: boolean;
 }
 
@@ -160,13 +143,6 @@ export interface TemplateStore {
   remove(id: string): Promise<void>;
 }
 
-/** Past confirmed tickets used to suggest a service. The technician supplies id and timestamp implicitly. */
-export interface ExampleStore {
-  list(): Promise<Example[]>;
-  add(example: Pick<Example, 'description' | 'service'>): Promise<Example>;
-  remove(id: string): Promise<void>;
-}
-
 /** Field-mapping corrections the technician made, keyed by form signature (src/core/signature.ts) so a form edit invalidates them. */
 export interface LearnedStore {
   get(signature: string): Promise<Record<string, string>>;
@@ -180,10 +156,9 @@ export interface SettingsStore {
   patch(partial: Partial<Settings>): Promise<void>;
 }
 
-/** The four persisted stores. No requestor store exists — requestor data lives in panel memory only. */
+/** The persisted stores. No requestor store exists — requestor data lives in panel memory only. */
 export interface Stores {
   templates: TemplateStore;
-  examples: ExampleStore;
   learned: LearnedStore;
   settings: SettingsStore;
 }

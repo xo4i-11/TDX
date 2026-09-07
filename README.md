@@ -4,7 +4,8 @@ A Chrome extension that fills TeamDynamix ticket forms at
 `ubuffalo.teamdynamix.com` for walk-up tickets. It resolves fields by meaning
 rather than by selector, so it works on TDX forms it has never seen.
 
-The requestor is read off the page at load — no pasting, no buttons.
+The requestor is read off the page at load, and picking a template fills the
+form — no pasting, no Fill button.
 
 Everything happens in the browser. The extension makes no network requests of
 any kind — no telemetry, no analytics, no hosted models, no CDN assets — and
@@ -25,9 +26,12 @@ Five fields: UBITName, Brief Summary, Description, Source (always `Walkup`),
 and Service. Everything else on the form is resolved and reported but never
 written.
 
+Pick a template and the form is filled. Pick a different one and it is filled
+again with that template's values — the previous template's values are replaced.
+
 **Affiliation is never written.** A person can be a student, an employee, or
 both, and a wrong affiliation misroutes the ticket. It shows in the results as
-deliberately skipped so you remember to set it.
+left alone so you remember to set it.
 
 **The extension never submits.** It fills and stops.
 
@@ -44,8 +48,7 @@ written — the red placeholder replaced by your steps, still red. Switching job
 rewrites the comment; text you typed yourself is never overwritten.
 
 **Responsible is never written.** TDX defaults it to the right account, and a
-wrong write reassigns a real person's queue and emails them. It shows in the
-results as resolved-and-reported.
+wrong write reassigns a real person's queue and emails them. It is left alone.
 
 A comment box that already has content is left alone, so a part-written comment
 is never loaded over.
@@ -93,17 +96,13 @@ project.
 
 ## Debugging a bad match
 
-Click **Diagnostics** in the panel. You get, for every control on the page: its
-extracted label, its `data-fieldtype` and `data-fieldid`, its shape, its option
-strings, the field it resolved to, the confidence, the tier that won, and the
-top three runners-up with scores. It is plain text with a copy button, so it
-pastes into a ticket or a chat unchanged.
+`resolve()` records, for every control: its extracted label, its
+`data-fieldtype`/`data-fieldid`, its shape, its options, the field it resolved
+to, the confidence, the winning tier, and the runners-up (`Resolution.diagnostics`
+in `src/core/resolve.ts`).
 
 Read the runners-up first. A field matching at 0.4 with a much better runner-up
 usually means a missing synonym in the dictionary, not a bug in the engine.
-
-If the mapping is simply wrong, correct it in the results panel. The correction
-is remembered.
 
 ## Troubleshooting: the panel doesn't appear
 
@@ -152,24 +151,14 @@ now wrong.
 
 ## Service selection
 
-There is no access to TDX ticket history, so there is no corpus to start from.
+Each template carries a captured `{id, text}` Service pair (and its Service
+Offering, when the service has one).
 
-1. **Template default.** Each template can carry a captured `{id, text}` Service
-   pair. Set the Service by hand on a real form, then click **Capture service
-   from form**. Deterministic, always available, no inference.
-2. **Local example retrieval.** After a fill you can save it as an example.
-   Later descriptions are scored against those saved examples with TF-IDF cosine
-   similarity — all local, no model, no network. Above the threshold you get a
-   suggestion with its score and the prior tickets that matched; you still have
-   to confirm it before it is written. Below the threshold there is no
-   suggestion at all, and the template default is used.
-
-This is retrieval over your own confirmed examples. It is not RAG and there is
-nothing neural in it.
-
-`src/service/retriever.ts` exports one function, `retrieve(queryText, examples)`,
-returning `[{ service, score, evidence }]`. Swapping in an embedding retriever
-later means writing a module with that same signature; nothing above it changes.
+A template with no service learns one the first time it fills: whatever is
+selected in the form's own Service lookup at that moment is saved onto the
+template. So set the Service by hand once, pick that template, and every later
+pick sets Service itself. Nothing is guessed — an empty lookup teaches nothing,
+and a wrong service misroutes a real ticket.
 
 ## Things that look like cruft and are not
 
@@ -208,10 +197,9 @@ script's isolated world. The `world: "MAIN"` script exists only to call
 answers — a CKEditor version bump, a CSP change, anything — the isolated-world
 side times out after 3 seconds and the description adapter falls through to
 writing the CKEditor iframe body directly, then the plain textarea, each
-verified by reading its own value back. The results row for Description says
-which path actually landed the write (`iframe editor body`, not `CKEditor
-instance`), so a silent bridge is visible in the panel, not just in the
-console — and the fill never hangs waiting for an answer that isn't coming.
+verified by reading its own value back. Every write is verified by reading it back, so a
+silent bridge never reports success — and the fill never hangs waiting for an
+answer that isn't coming.
 
 **`panel.css.ts` exports a string.** A shadow root needs the CSS text, and a
 plain `.css` file would have to be declared in `web_accessible_resources`,
@@ -260,7 +248,7 @@ verified by hand on a real TDX form after any change to `src/adapters/`:
       right service (proves the hidden id was written, not just the visible half).
 - [ ] Brief Summary and UBITName survive a save.
 - [ ] Source reads `Walkup` after the fill.
-- [ ] Affiliation is untouched and reported as skipped.
+- [ ] Affiliation is untouched.
 - [ ] Nothing submits.
 
 ## A note on the TDX REST API
