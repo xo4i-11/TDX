@@ -123,6 +123,10 @@ export interface Settings {
    * resolve page comes up on the template the ticket was created from.
    */
   lastTemplateId?: string;
+  /** Where the technician dragged the panel to, and how big they made it. */
+  panelX?: number;
+  panelY?: number;
+  zoom?: number;
 }
 
 /** One line in the results panel: what happened to one field. */

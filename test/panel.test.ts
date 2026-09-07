@@ -188,6 +188,54 @@ test('the panel collapses and remembers it', async () => {
   assert.equal((await stores.settings.get()).collapsed, true);
 });
 
+test('the panel is dragged by its header and remembers where it was dropped', async () => {
+  const { $, doc, stores } = await open();
+  const view = doc.defaultView;
+  assert.ok(view);
+  const head = must($<HTMLElement>('.head'), 'header missing');
+  const drag = (type: string, x: number, y: number): void => {
+    head.dispatchEvent(new view.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
+  };
+
+  drag('pointerdown', 20, 20);
+  drag('pointermove', 120, 90);
+  drag('pointerup', 120, 90);
+  await settle();
+
+  const panelEl = must($<HTMLElement>('.panel'), 'panel missing');
+  assert.equal(panelEl.style.left, '100px');
+  assert.equal(panelEl.style.top, '70px');
+  assert.equal(panelEl.style.right, 'auto', 'the CSS default corner must be released once dragged');
+  const saved = await stores.settings.get();
+  assert.deepEqual([saved.panelX, saved.panelY], [100, 70]);
+});
+
+test('a header button is a button, not a drag handle', async () => {
+  const { $, doc, stores } = await open();
+  const view = doc.defaultView;
+  assert.ok(view);
+  const collapse = must($('button[data-collapse]'), 'collapse button missing');
+  collapse.dispatchEvent(new view.MouseEvent('pointerdown', { bubbles: true, clientX: 300, clientY: 300 }));
+  must($<HTMLElement>('.head'), 'header missing').dispatchEvent(new view.MouseEvent('pointermove', { bubbles: true, clientX: 400, clientY: 400 }));
+  await settle();
+
+  assert.equal(must($<HTMLElement>('.panel'), 'panel missing').style.left, '', 'clicking a header button must not move the panel');
+  assert.equal((await stores.settings.get()).panelX, undefined);
+});
+
+test('zooming persists and is clamped, so the panel cannot be shrunk out of use', async () => {
+  const { $, doc, stores } = await open();
+  click(must($('button[data-zoom-in]'), 'zoom-in button missing'), doc);
+  await settle();
+  assert.equal((await stores.settings.get()).zoom, 1.1);
+
+  for (let i = 0; i < 12; i++) {
+    click(must($('button[data-zoom-out]'), 'zoom-out button missing'), doc);
+    await settle();
+  }
+  assert.equal((await stores.settings.get()).zoom, 0.7, 'zoom must stop at the minimum, not keep going');
+});
+
 test('pressing Escape collapses the panel and remembers it, same as the button', async () => {
   const { $, doc, stores } = await open();
   const view = doc.defaultView;

@@ -175,25 +175,122 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     panel.replaceChildren(errorEl, header(), await body());
   }
 
+  const ZOOM_STEP = 0.1;
+  const ZOOM_RANGE = [0.7, 1.6] as const;
+  let zoom = clampZoom(initialSettings.zoom ?? 1);
+
+  function clampZoom(value: number): number {
+    return Math.min(ZOOM_RANGE[1], Math.max(ZOOM_RANGE[0], Math.round(value * 100) / 100));
+  }
+
+  /**
+   * `zoom`, not `transform: scale()`: it scales layout rather than painting a
+   * scaled bitmap over it, so hit targets, the drag maths below and the
+   * page's own coordinates all stay in agreement. Chrome-only, which this
+   * extension is.
+   */
+  function applyZoom(): void {
+    panel.style.zoom = String(zoom);
+  }
+
+  async function setZoom(next: number): Promise<void> {
+    zoom = clampZoom(next);
+    applyZoom();
+    await stores.settings.patch({ zoom });
+    await render();
+  }
+
+  async function setCollapsed(collapsed: boolean): Promise<void> {
+    panel.dataset.collapsed = String(collapsed);
+    await stores.settings.patch({ collapsed });
+    await render();
+  }
+
+  /** Keeps the panel reachable when the window is smaller than it was when the position was saved. */
+  function place(x: number, y: number): { x: number; y: number } {
+    const view = document.defaultView;
+    const width = panel.offsetWidth * zoom || 330;
+    const height = panel.offsetHeight * zoom || 120;
+    const maxX = Math.max(0, (view?.innerWidth ?? width) - width);
+    const maxY = Math.max(0, (view?.innerHeight ?? height) - height);
+    const at = { x: Math.min(maxX, Math.max(0, x)), y: Math.min(maxY, Math.max(0, y)) };
+    // left/top only once dragged — the CSS default (bottom right) is what an
+    // untouched panel should keep, including after a window resize.
+    panel.style.left = `${at.x}px`;
+    panel.style.top = `${at.y}px`;
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+    return at;
+  }
+
+  /**
+   * Drag by the header. Pointer events, not mouse events: one code path covers
+   * mouse, pen and touch, and setPointerCapture means a fast drag that leaves
+   * the header — or the page — does not drop the panel mid-move.
+   */
+  function startDragging(handle: HTMLElement): void {
+    handle.addEventListener('pointerdown', (event: PointerEvent) => {
+      // Buttons in the header are still buttons.
+      if ((event.target as Element | null)?.closest('button')) return;
+      const rect = panel.getBoundingClientRect();
+      const offsetX = event.clientX - rect.left;
+      const offsetY = event.clientY - rect.top;
+      // Optional call: a fast drag must not drop the panel, but an environment
+      // without pointer capture (jsdom) is not a reason to refuse to drag.
+      handle.setPointerCapture?.(event.pointerId);
+      panel.dataset.dragging = 'true';
+      event.preventDefault();
+
+      const move = (moveEvent: PointerEvent): void => {
+        place(moveEvent.clientX - offsetX, moveEvent.clientY - offsetY);
+      };
+      const up = (upEvent: PointerEvent): void => {
+        handle.removeEventListener('pointermove', move);
+        handle.removeEventListener('pointerup', up);
+        handle.removeEventListener('pointercancel', up);
+        delete panel.dataset.dragging;
+        const at = place(upEvent.clientX - offsetX, upEvent.clientY - offsetY);
+        stores.settings.patch({ panelX: at.x, panelY: at.y }).catch((error: unknown) => {
+          setError(describeError(error));
+        });
+      };
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', up);
+      handle.addEventListener('pointercancel', up);
+    });
+  }
+
   function header(): HTMLElement {
     const head = document.createElement('div');
     head.className = 'head';
     const title = document.createElement('h1');
-    title.textContent = 'TDX Autofill';
+    // Collapsed, the panel is a bubble and this is the only thing in it.
+    title.textContent = panel.dataset.collapsed === 'true' ? 'TDX' : 'TDX Autofill';
 
-    const settingsButton = button('Settings', () => { state.showSettings = !state.showSettings; return render(); });
+    const settingsButton = button('⚙', () => { state.showSettings = !state.showSettings; return render(); });
     settingsButton.setAttribute('data-settings', '');
     settingsButton.setAttribute('aria-expanded', String(state.showSettings));
+    settingsButton.title = 'Settings';
+    settingsButton.setAttribute('aria-label', 'Settings');
 
-    const collapse = button(panel.dataset.collapsed === 'true' ? 'Expand' : 'Collapse', async () => {
-      const collapsed = panel.dataset.collapsed !== 'true';
-      panel.dataset.collapsed = String(collapsed);
-      await stores.settings.patch({ collapsed });
-      await render();
-    });
+    const out = button('−', () => setZoom(zoom - ZOOM_STEP));
+    out.title = 'Smaller';
+    out.setAttribute('aria-label', 'Smaller');
+    out.setAttribute('data-zoom-out', '');
+
+    const inn = button('+', () => setZoom(zoom + ZOOM_STEP));
+    inn.title = 'Bigger';
+    inn.setAttribute('aria-label', 'Bigger');
+    inn.setAttribute('data-zoom-in', '');
+
+    const collapsedNow = panel.dataset.collapsed === 'true';
+    const collapse = button(collapsedNow ? '●' : '–', () => setCollapsed(!collapsedNow));
     collapse.setAttribute('data-collapse', '');
+    collapse.title = collapsedNow ? 'Expand' : 'Minimise';
+    collapse.setAttribute('aria-label', collapsedNow ? 'Expand' : 'Minimise');
 
-    head.append(title, settingsButton, collapse);
+    head.append(title, out, inn, settingsButton, collapse);
+    startDragging(head);
     return head;
   }
 
@@ -479,8 +576,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   function onEscape(event: KeyboardEvent): void {
     if (event.key !== 'Escape') return;
-    panel.dataset.collapsed = 'true';
-    stores.settings.patch({ collapsed: true }).catch((error: unknown) => {
+    setCollapsed(true).catch((error: unknown) => {
       setError(describeError(error));
       render().catch(() => {});
     });
@@ -498,6 +594,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   document.body.append(host);
   await render();
+  applyZoom();
+  if (initialSettings.panelX !== undefined && initialSettings.panelY !== undefined) {
+    place(initialSettings.panelX, initialSettings.panelY);
+  }
 
   // The card holding the email, the UBITName and the person number is
   // rendered by the page *around* the form, and usually after this frame's

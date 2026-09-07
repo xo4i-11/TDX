@@ -7,6 +7,10 @@ rather than by selector, so it works on TDX forms it has never seen.
 The requestor is read off the page at load, and picking a template fills the
 form — no pasting, no Fill button.
 
+The panel is a floating bubble: drag it by its header, minimise it to a round
+handle (or press Escape), and size it with the − / + controls. Where you put
+it, how big you made it, and whether it was minimised all survive a reload.
+
 Everything happens in the browser. The extension makes no network requests of
 any kind — no telemetry, no analytics, no hosted models, no CDN assets — and
 that is enforced by a test.
