@@ -1,9 +1,9 @@
-// Tests finding and clicking one entry in TDX's own comment-template menu.
+// Tests reading one comment template out of TDX's own page data.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { loadUpdateFixture } from './helpers.ts';
-import { findTemplateLink, applyTemplate } from '../src/adapters/tdx-templates.ts';
+import { findTemplateLink, readTemplateHtml } from '../src/adapters/tdx-templates.ts';
 
 // Falsifiability: "Ticket Resolved", "Ticket Resolved - No Response" and
 // "@Ticket Resolved" all exist in this menu. A substring match would pick
@@ -32,73 +32,58 @@ test('reports nothing rather than guessing when the template is absent', () => {
   assert.equal(findTemplateLink(doc, 'Ticket Resolved', 'ALL'), null);
 });
 
-test('applyTemplate clicks the link and resolves once the editor changes', async () => {
-  const doc = new JSDOM('<a class="js-template" data-template-id="61">Ticket Resolved</a>').window.document;
-  const link = doc.querySelector('a');
-  assert.ok(link);
-
-  let body = '';
-  // Stand in for TDX: the click triggers a fetch that later fills the editor.
-  link.addEventListener('click', () => { setTimeout(() => { body = '<p>Resolved boilerplate</p>'; }, 10); });
-
-  const result = await applyTemplate(link, () => body, { timeout: 1000 });
-  assert.equal(result.ok, true);
-  assert.equal(body, '<p>Resolved boilerplate</p>');
+// The whole point of reading the page data rather than clicking the menu: no
+// CKEditor, no jQuery, no Mustache, no waiting — this runs in jsdom, against
+// the real inline block TDX ships.
+test('reads the Ticket Resolved body out of the page, with its red placeholder intact', () => {
+  const found = readTemplateHtml(loadUpdateFixture(), 'Ticket Resolved', 'ALL');
+  assert.ok(!('error' in found), `expected a body, got ${JSON.stringify(found)}`);
+  assert.match(found.html, /Your ticket has been resolved/);
+  assert.match(found.html, /color:#ff0000/, 'the red placeholder is what the steps get substituted into');
 });
 
-// Falsifiability: without the wait, a click that TDX never answers would be
-// reported as success and the fill would substitute into an empty body.
-test('applyTemplate reports failure when the editor never changes', async () => {
-  const doc = new JSDOM('<a class="js-template">Ticket Resolved</a>').window.document;
-  const link = doc.querySelector('a');
-  assert.ok(link);
+test('substitutes the values TDX would have substituted, including a null one', () => {
+  const doc = new JSDOM(`
+    <ul><li class="dropdown-submenu"><a>ALL</a><ul>
+      <li><a class="js-template" data-template-id="61">Ticket Resolved</a></li>
+    </ul></li></ul>
+    <script>
+      var responseTemplates = {};
+      responseTemplates[61] = "Hello {{RequestorFirstName}},<br />{{{TechnicianSignature}}}{{Unknown}}";
+      $(".js-entry-form").TicketUpdate({
+        templateJson: {"RequestorFirstName":"Terry","TechnicianSignature":null},
+        responseTemplates: responseTemplates
+      });
+    </script>`).window.document;
 
-  const result = await applyTemplate(link, () => '', { timeout: 200 });
-  assert.equal(result.ok, false);
-  assert.match(result.detail, /did not change/);
+  const found = readTemplateHtml(doc, 'Ticket Resolved', 'ALL');
+  assert.ok(!('error' in found));
+  // A key the page has no value for stays visible rather than being blanked.
+  assert.equal(found.html, 'Hello Terry,<br />{{Unknown}}');
 });
 
-const MENU = `
-<div class="dropdown">
-  <a class="dropdown-toggle" href="javascript:;" id="lnkShowTemplates" data-toggle="dropdown" aria-expanded="false">Templates</a>
-  <ul class="dropdown-menu multi-level">
-    <li class="dropdown-submenu"><a href="javascript:;" data-toggle="dropdown">ALL</a>
-      <ul class="dropdown-menu">
-        <li><a href="javascript:;" class="js-template" data-template-id="61">Ticket Resolved</a></li>
-      </ul>
-    </li>
-  </ul>
-</div>`;
+// Falsifiability: the bodies are full of escaped quotes from inline style
+// attributes. A naive "up to the next quote" read would truncate at the first.
+test('a body containing escaped quotes is read whole', () => {
+  const doc = new JSDOM(`
+    <a class="js-template" data-template-id="7">Ticket Resolved</a>
+    <script>
+      responseTemplates[7] = "a \\u003cspan style=\\"color:#ff0000\\"\\u003ered\\u003c/span\\u003e b";
+    </script>`).window.document;
 
-// Falsifiability: TDX binds its template handler through the open dropdown, so
-// clicking the buried link alone does nothing at all — the reported bug.
-test('applyTemplate opens Templates, then the group, then clicks the entry', async () => {
-  const doc = new JSDOM(MENU).window.document;
-  const link = findTemplateLink(doc, 'Ticket Resolved', 'ALL');
-  assert.ok(link);
-
-  const clicks: string[] = [];
-  for (const a of doc.querySelectorAll('a')) {
-    a.addEventListener('click', () => { clicks.push((a.textContent ?? '').trim()); });
-  }
-
-  let body = '';
-  link.addEventListener('click', () => { body = '<p>Resolved boilerplate</p>'; });
-
-  const result = await applyTemplate(link, () => body, { timeout: 1000 });
-  assert.equal(result.ok, true);
-  assert.deepEqual(clicks, ['Templates', 'ALL', 'Ticket Resolved'], 'menu must be opened outermost-first');
+  const found = readTemplateHtml(doc, 'Ticket Resolved');
+  assert.ok(!('error' in found));
+  assert.equal(found.html, 'a <span style="color:#ff0000">red</span> b');
 });
 
-test('applyTemplate marks the menus open, for a page whose dropdown JS never runs', async () => {
-  const doc = new JSDOM(MENU).window.document;
-  const link = findTemplateLink(doc, 'Ticket Resolved', 'ALL');
-  assert.ok(link);
-  let body = '';
-  link.addEventListener('click', () => { body = '<p>x</p>'; });
+test('says what was missing rather than returning an empty body', () => {
+  const noBody = new JSDOM('<a class="js-template" data-template-id="61">Ticket Resolved</a>').window.document;
+  const found = readTemplateHtml(noBody, 'Ticket Resolved');
+  assert.ok('error' in found);
+  assert.match(found.error, /no body for template 61/);
 
-  await applyTemplate(link, () => body, { timeout: 1000 });
-  assert.ok(doc.querySelector('.dropdown')?.classList.contains('open'), 'the outer dropdown must be marked open');
-  assert.ok(doc.querySelector('li.dropdown-submenu')?.classList.contains('open'), 'the submenu must be marked open');
-  assert.equal(doc.getElementById('lnkShowTemplates')?.getAttribute('aria-expanded'), 'true');
+  const noLink = new JSDOM('<div></div>').window.document;
+  const missing = readTemplateHtml(noLink, 'Ticket Resolved', 'ALL');
+  assert.ok('error' in missing);
+  assert.match(missing.error, /not in this page menu/);
 });

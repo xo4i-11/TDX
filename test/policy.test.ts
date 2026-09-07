@@ -270,14 +270,17 @@ test('no loaded template blocks only the comment row', async () => {
   assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
 });
 
-test('empty steps block only the comment row', async () => {
+// With no steps typed yet the comment is still written: the page should open
+// on the resolved boilerplate, red placeholder and all, which is what TDX's own
+// template menu would have left there.
+test('empty steps still write the body they were handed', async () => {
   const { resolution } = resolveSetup();
   const rows = await runFill({
     resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(),
     resolvedCommentHtml: RESOLVED_BODY, steps: '   ',
   }, { bridge });
-  assert.equal(row(rows, 'comments')?.status, 'needs-confirm');
-  assert.match(row(rows, 'comments')?.detail ?? '', /what you tried/i);
+  assert.equal(row(rows, 'comments')?.status, 'filled');
+  assert.equal(row(rows, 'comments')?.value, RESOLVED_BODY);
 });
 
 // Falsifiability: responsible resolves on this form, so if neverWrite stopped

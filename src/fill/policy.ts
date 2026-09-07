@@ -186,14 +186,12 @@ function valueFor(
           detail: 'the Ticket Resolved template has not loaded from the page yet',
         };
       }
+      // No steps yet is not a reason to leave the comment empty: the page
+      // should open on the resolved boilerplate with its red placeholder
+      // still in it, exactly as TDX's own template menu would have left it.
+      // The caller hands over the untouched body in that case, so there is no
+      // {{steps}} in it to substitute.
       const list = stepsToHtml(steps);
-      if (!list) {
-        return {
-          kind: 'blocked',
-          status: 'needs-confirm',
-          detail: 'type what you tried before filling — this comment is visible to the client',
-        };
-      }
       // escape: false because stepsToHtml already escaped each line; escaping
       // again would show the technician a page full of &lt;li&gt;.
       return { kind: 'value', value: substitute(resolvedCommentHtml, { steps: list }, { escape: false }).text };

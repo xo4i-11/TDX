@@ -43,9 +43,18 @@ left alone so you remember to set it.
 ### Resolving a ticket
 
 On a ticket **update** form the panel switches to resolve mode. At load it
-clicks TDX's own **Templates > ALL > Ticket Resolved**, waits for the editor to
-receive it, and writes New Status (`Resolved`) and the private-comment checkbox
-(unchecked, so the client can read the reply).
+reads TDX's own **Templates > ALL > Ticket Resolved** body out of the page and
+writes it into the comment, along with New Status (`Resolved`) and the
+private-comment checkbox (unchecked, so the client can read the reply).
+
+It reads rather than clicks. TDX ships every template body twice: as menu
+links, and as an inline `responseTemplates[<id>] = "…"` block with the values
+for their placeholders in `templateJson` beside it. Its own menu handler is
+`ckeCommentEditor.setData(Mustache.render(body, json))` — driving that click
+meant depending on their CKEditor instance, their jQuery binding and their
+Mustache all being live in the page world, none of it observable from here,
+and it failed exactly that way: the click landed, nothing happened, and the
+only signal was a six-second timeout.
 
 Create and resolve share one template list — the eduroam ticket is resolved
 with the eduroam template — so the resolve page opens on the template the

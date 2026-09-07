@@ -1,22 +1,21 @@
-// Opens TDX's own comment-template menu and clicks one entry, then waits for the editor to receive it.
+// Reads a TDX comment template out of the update page, without going through TDX's own menu.
 /**
- * TDX renders its comment templates as a Bootstrap dropdown of
- * `a.js-template[data-template-id]` links grouped into submenus (ACO, ALL,
- * UBIT HC, …). Clicking one makes TDX fetch the body and drop it into
- * CKEditor.
+ * TDX renders its comment templates twice: once as `a.js-template` links in a
+ * Bootstrap dropdown, and once as an inline script that assigns every body to
+ * `responseTemplates[<id>]`, with the values for their placeholders in a
+ * `templateJson` object beside it. Its own menu handler is
+ * `$templates.click(... ckeCommentEditor.setData(Mustache.render(body, json)))`.
  *
- * This is the one place the extension drives someone else's AJAX, which the
- * lookup adapter exists to avoid — so it is written to fail visibly and
- * harmlessly: it finds the link by *name*, never by a hardcoded id, reports
- * "not found" rather than clicking something else, and waits for the editor
- * to actually change instead of assuming the click worked.
+ * This reads that data rather than clicking the menu. Driving someone else's
+ * click handler meant depending on their CKEditor instance existing, their
+ * jQuery binding having run, and their Mustache being loaded — all in the page
+ * world, none of it observable from here, and it failed in exactly the way
+ * that predicts: the click was dispatched, nothing happened, and the only
+ * signal was a six-second timeout. The data is right there in the DOM.
  */
 
-import { waitFor } from './wait.ts';
-import { isBlankHtml } from '../data/resolved.ts';
-
-/** How long to give TDX's fetch before calling it a miss. Its own menu, its own network. */
-const LOAD_TIMEOUT_MS = 6000;
+/** The values TDX substitutes into a template: technician and requestor names, dates, ticket ids. */
+type TemplateValues = Record<string, unknown>;
 
 /**
  * Finds one template link by its visible name, preferring the named group.
@@ -46,76 +45,98 @@ export function findTemplateLink(doc: Document, name: string, group?: string): H
   return inGroup ?? links[0] ?? null;
 }
 
-/**
- * Opens every dropdown between the page and this link, outermost first, then
- * leaves them open for the click that follows.
- *
- * Clicking the buried link on its own does nothing: TDX's handler runs through
- * the opened menu, and a submenu that was never opened never gets its entries
- * wired. The `open` class and aria-expanded are set directly as well as
- * clicked, so the menu still opens if Bootstrap's own handler is bound
- * differently than this expects — belt and braces on someone else's widget.
- */
-function openMenuTo(link: HTMLAnchorElement): void {
-  const view = link.ownerDocument.defaultView;
-  if (!view) return;
+export type TemplateRead = { html: string } | { error: string };
 
-  const toggles: HTMLAnchorElement[] = [];
-  let node: Element | null = link.parentElement;
-  while (node) {
-    const container = node.closest('.dropdown, li.dropdown-submenu');
-    if (!container) break;
-    const toggle = container.querySelector<HTMLAnchorElement>(':scope > a[data-toggle="dropdown"], :scope > a.dropdown-toggle');
-    if (toggle) toggles.push(toggle);
-    node = container.parentElement;
-  }
+/** The template's body with TDX's own placeholder values substituted, ready to write into the comment. */
+export function readTemplateHtml(doc: Document, name: string, group?: string): TemplateRead {
+  const link = findTemplateLink(doc, name, group);
+  if (!link) return { error: `Templates > ${group ?? 'any group'} > ${name} is not in this page menu` };
 
-  // Outermost first: a submenu cannot be opened before the menu holding it.
-  for (const toggle of toggles.reverse()) {
-    const container = toggle.closest('.dropdown, li.dropdown-submenu');
-    container?.classList.add('open');
-    toggle.setAttribute('aria-expanded', 'true');
-    toggle.dispatchEvent(new view.MouseEvent('click', { bubbles: true, cancelable: true, view }));
-  }
+  const id = link.dataset.templateId;
+  if (!id) return { error: `the "${name}" template link carries no template id` };
+
+  const source = scriptContaining(doc, `responseTemplates[${id}]`);
+  if (!source) return { error: `the page holds no body for template ${id}` };
+
+  const body = assignedString(source, `responseTemplates[${id}]`);
+  if (body === null) return { error: `the body for template ${id} could not be read from the page` };
+
+  return { html: render(body, valuesIn(source)) };
 }
 
-export interface ApplyTemplateResult {
-  ok: boolean;
-  detail: string;
+/** The inline script that assigns the bodies — found by content, since it has no id of its own. */
+function scriptContaining(doc: Document, needle: string): string | null {
+  for (const script of doc.querySelectorAll('script')) {
+    const text = script.textContent ?? '';
+    if (text.includes(needle)) return text;
+  }
+  return null;
 }
 
 /**
- * Clicks the link and waits until `readBody` reports content that is both
- * non-empty and different from what was there before.
- *
- * `readBody` is injected rather than imported so this file stays ignorant of
- * how a rich-text control is read — and so a test can drive it without a
- * CKEditor.
+ * Reads `<assignment> = "…";` — a JavaScript double-quoted string whose escapes
+ * (\u003c for <, \r\n, \\") are all JSON's too, so JSON.parse is the parser
+ * rather than a hand-rolled unescaper.
  */
-export async function applyTemplate(
-  link: HTMLAnchorElement,
-  readBody: () => string,
-  { timeout = LOAD_TIMEOUT_MS }: { timeout?: number } = {},
-): Promise<ApplyTemplateResult> {
-  const before = readBody();
-  const doc = link.ownerDocument;
-  const view = doc.defaultView;
-  if (!view) return { ok: false, detail: 'the template menu has no window to dispatch a click in' };
+function assignedString(source: string, assignment: string): string | null {
+  const start = source.indexOf(assignment);
+  if (start === -1) return null;
+  const quote = source.indexOf('"', start);
+  if (quote === -1) return null;
 
-  // The menu has to be physically open first: clicking the buried link alone
-  // does nothing, which is how this shipped broken the first time.
-  openMenuTo(link);
-  link.dispatchEvent(new view.MouseEvent('click', { bubbles: true, cancelable: true, view }));
-
+  // Walks to the closing quote so an escaped quote inside the body does not
+  // end it early — the bodies are full of \\" from inline style attributes.
+  let i = quote + 1;
+  for (; i < source.length; i++) {
+    if (source[i] === '\\') { i++; continue; }
+    if (source[i] === '"') break;
+  }
   try {
-    await waitFor(() => {
-      const now = readBody();
-      // Blank rather than empty: CKEditor seeds a placeholder paragraph, so
-      // "the body changed to <p><br></p>" is not the template arriving.
-      return !isBlankHtml(now) && now !== before;
-    }, { timeout, root: doc, win: view });
+    return JSON.parse(source.slice(quote, i + 1)) as string;
   } catch {
-    return { ok: false, detail: `the comment editor did not change within ${timeout}ms of clicking the template` };
+    return null;
   }
-  return { ok: true, detail: 'loaded from the TDX template menu' };
+}
+
+/** The `templateJson: { … }` object literal beside the bodies, read by matching its braces. */
+function valuesIn(source: string): TemplateValues {
+  const key = source.indexOf('templateJson:');
+  if (key === -1) return {};
+  const open = source.indexOf('{', key);
+  if (open === -1) return {};
+
+  let depth = 0;
+  let inString = false;
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === '{') depth++;
+    else if (ch === '}' && --depth === 0) {
+      try {
+        return JSON.parse(source.slice(open, i + 1)) as TemplateValues;
+      } catch {
+        return {};
+      }
+    }
+  }
+  return {};
+}
+
+/**
+ * Mustache's substitution, minus Mustache: `{{Key}}` and `{{{Key}}}` (the
+ * triple form TDX uses for the signature, which is HTML). A key the page has
+ * no value for is left standing rather than blanked — a placeholder still in
+ * the comment is visible; a silently emptied one is not.
+ */
+function render(body: string, values: TemplateValues): string {
+  return body.replace(/\{\{\{?\s*([\w.]+)\s*\}?\}\}/g, (whole, key: string) => {
+    if (!(key in values)) return whole;
+    const value = values[key];
+    return value === null || value === undefined ? '' : String(value);
+  });
 }

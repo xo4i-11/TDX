@@ -438,16 +438,8 @@ test('choosing a template never wipes steps the technician typed', async () => {
   assert.equal(must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing').value, 'Something I typed');
 });
 
-const TDX_TEMPLATE_BODY = '<p>Your ticket has been resolved.</p><p><span style="color:#c00">steps taken</span></p><p>Thank you.</p>';
 
 /** Stands in for TDX: clicking a template link fetches a body into the editor. */
-function wireTemplateMenu(doc: Document, body = TDX_TEMPLATE_BODY): void {
-  for (const link of doc.querySelectorAll('a.js-template')) {
-    link.addEventListener('click', () => {
-      if ((link.textContent ?? '').trim() === 'Ticket Resolved') loadEditor(doc, body);
-    });
-  }
-}
 
 // Create and resolve share one template list: the eduroam ticket is resolved
 // with the eduroam template, so the resolve page must open on it rather than on
@@ -461,7 +453,6 @@ test('the resolve page opens on the template the create form was left on', async
 
   const update = loadUpdateFixture();
   loadEditor(update, '');
-  wireTemplateMenu(update);
   const resolve = await open(update, createStores(area));
   await settle();
 
@@ -486,7 +477,6 @@ test('the template menu is not clicked until the comment editor exists', async (
   const parent = iframe.parentElement;
   assert.ok(parent);
   iframe.remove();
-  wireTemplateMenu(doc);
 
   await open(doc);
   await settle();
@@ -503,7 +493,6 @@ test('the template menu is not clicked until the comment editor exists', async (
 test('on load the panel opens Templates > ALL > Ticket Resolved by itself', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '');
-  wireTemplateMenu(doc);
 
   await open(doc);
   await settle();
@@ -516,7 +505,6 @@ test('on load the panel opens Templates > ALL > Ticket Resolved by itself', asyn
 test('typing steps fills the comment with no Fill click', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '');
-  wireTemplateMenu(doc);
 
   const { $ } = await open(doc);
   await settle();
@@ -538,7 +526,6 @@ test('typing steps fills the comment with no Fill click', async () => {
 test('a comment box with content is never loaded over', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '<p>Half a comment I was writing</p>');
-  wireTemplateMenu(doc);
 
   await open(doc);
   await settle();
@@ -553,7 +540,6 @@ test('a comment box with content is never loaded over', async () => {
 test('a CKEditor placeholder paragraph does not count as an occupied comment box', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '<p><br></p>');
-  wireTemplateMenu(doc);
 
   await open(doc);
   await settle();
@@ -567,7 +553,6 @@ test('a CKEditor placeholder paragraph does not count as an occupied comment box
 test('the substituted steps land in the comment still red', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '');
-  wireTemplateMenu(doc);
 
   const { $ } = await open(doc);
   await settle();
@@ -584,7 +569,7 @@ test('the substituted steps land in the comment still red', async () => {
 
   const html = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body.innerHTML ?? '';
   assert.match(html, /<li>Removed the saved eduroam network<\/li>/);
-  assert.match(html, /color:\s*#c00[^>]*>\s*<ul>/i, 'the list must sit inside the red wrapper it replaced');
+  assert.match(html, /color:\s*#(c00|ff0000)[^>]*>\s*<ul>/i, 'the list must sit inside the red wrapper it replaced');
 });
 
 // Switching jobs mid-resolve has to correct the comment, not append to a
@@ -592,7 +577,6 @@ test('the substituted steps land in the comment still red', async () => {
 test('changing the template refills the comment with the new steps', async () => {
   const doc = loadUpdateFixture();
   loadEditor(doc, '');
-  wireTemplateMenu(doc);
 
   const { $ } = await open(doc);
   await settle();

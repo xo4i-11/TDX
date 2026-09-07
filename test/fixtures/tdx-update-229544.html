@@ -118,7 +118,22 @@
             <div class="tdx-min-width-fit-content">
               <div class="comment-options clearfix">
                 <div class="pull-left">
-                    <div class="dropdown padding-left-xs" style="position: relative; top: 2px;">
+                            <script type="text/javascript">
+          // Trimmed copy of TDX's own inline block on this page: the comment
+          // template bodies, plus the values it substitutes into them. This is
+          // what the extension reads instead of driving the menu - see
+          // src/adapters/tdx-templates.ts.
+          var responseTemplates = {};
+                responseTemplates[16] = "Card reader boilerplate for {{RequestorFirstName}}.";
+                responseTemplates[61] = "Hello,\u003cbr /\u003e\r\n\u003cbr /\u003e\r\nYour ticket has been resolved.\u003cbr /\u003e\r\n\u003cbr /\u003e\r\n\u003cstrong\u003eResolution:\u003c/strong\u003e\u003cbr /\u003e\r\n\u003cspan style=\u0022color:#ff0000\u0022\u003eAdd pertinent resolution details here\u003c/span\u003e\u003cbr /\u003e\r\n\u003cbr /\u003e\r\nIf you feel your problem has not been resolved or service request has not been fulfilled, please reply to this email with your concerns within 7 days to reopen the request. Otherwise, this ticket will automatically close after 7 days.\u003cbr /\u003e\r\n\u003cbr /\u003e\r\nThank you for giving us the opportunity to assist you.\u003cbr /\u003e\r\n\u003cbr /\u003e\r\n\u003cbr /\u003e\r\n{{{TechnicianSignature}}}";
+          $(document).ready(function () {
+            $(".js-entry-form").TicketUpdate({
+              templateJson: {"TechnicianFullName":"Anh Duy Nghiem","TechnicianFirstName":"Anh Duy","TechnicianSignature":null,"RequestorFullName":"Terry Connell","RequestorFirstName":"Terry","TicketID":"229544"},
+              responseTemplates: responseTemplates
+            });
+          });
+        </script>
+<div class="dropdown padding-left-xs" style="position: relative; top: 2px;">
                       <a class="dropdown-toggle" href="javascript:;" id="lnkShowTemplates" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         Templates
                         <span class="caret"></span>

@@ -19,7 +19,7 @@ import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import { waitFor } from '../adapters/wait.ts';
 import { readRichTextHtml, isEditorReady } from '../adapters/richtext.ts';
 import { isBlankHtml, toStepsTemplate } from '../data/resolved.ts';
-import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
+import { readTemplateHtml } from '../adapters/tdx-templates.ts';
 import type {
   Bridge, FillRow, RequestorFields, Resolution, Stores, Template,
 } from '../types.ts';
@@ -482,8 +482,12 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       service,
       serviceOffering,
       steps: state.steps,
+      // With steps to write, the red placeholder becomes {{steps}} and they
+      // replace it. Without them, the body goes in untouched — red placeholder
+      // and all — so the technician sees the boilerplate they are about to
+      // complete rather than an empty comment box.
       resolvedCommentHtml: state.loadedTemplateHtml
-        ? toStepsTemplate(state.loadedTemplateHtml, document)
+        ? (state.steps.trim() ? toStepsTemplate(state.loadedTemplateHtml, document) : state.loadedTemplateHtml)
         : null,
       settings,
       now: now(),
@@ -501,9 +505,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   }
 
   /**
-   * Resolve mode's opening move, run once at mount: click TDX's own
-   * Templates > ALL > Ticket Resolved, wait for the editor to receive it, then
-   * fill. The technician opens no menu and clicks no button.
+   * Resolve mode's opening move, run once at mount: read TDX's own
+   * Templates > ALL > Ticket Resolved out of the page and fill with it. The
+   * technician opens no menu and clicks no button.
    *
    * Refuses to load over an editor that already has content — that content
    * could be a comment someone was part-way through writing, and TDX's own
@@ -516,10 +520,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       return;
     }
 
-    // TDX binds its template menu in the same init that builds CKEditor, and
-    // that handler calls setData on the instance — so a click sent before the
-    // editor exists does nothing, silently. The panel mounts as soon as the
-    // form markup is there, which is well before that.
+    // The template body is read from the page, but writing it still needs a
+    // built editor — the panel mounts on the form markup, which is there
+    // before CKEditor is.
     try {
       await waitFor(() => isEditorReady(control), { timeout: EDITOR_READY_MS, root: document, win: document.defaultView ?? undefined });
     } catch {
@@ -537,19 +540,12 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       return;
     }
 
-    const link = findTemplateLink(document, 'Ticket Resolved', 'ALL');
-    if (!link) {
-      state.autoTemplate = 'Templates > ALL > Ticket Resolved is not in this page menu; using the captured template instead.';
-      await fillNow();
-      return;
-    }
-
-    const result = await applyTemplate(link, () => readRichTextHtml(control));
-    if (result.ok) {
-      state.loadedTemplateHtml = readRichTextHtml(control);
-      state.autoTemplate = 'Loaded Templates > ALL > Ticket Resolved.';
+    const found = readTemplateHtml(document, 'Ticket Resolved', 'ALL');
+    if ('error' in found) {
+      state.autoTemplate = `${found.error}; using the captured template instead.`;
     } else {
-      state.autoTemplate = `${result.detail}; using the captured template instead.`;
+      state.loadedTemplateHtml = found.html;
+      state.autoTemplate = 'Loaded Templates > ALL > Ticket Resolved.';
     }
     await fillNow();
   }
