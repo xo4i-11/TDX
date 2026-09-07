@@ -14,7 +14,7 @@ const MAILTO = /\[[^\]]*\]\(mailto:([^)\s]+)\)/i;
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
 const MD_LINK = /\[([^\]]+)\]\(([^)]+)\)/;
 // "50583450 - duynghie". Person number is numeric; UBITName follows the dash.
-const ID_LINE = /^(\d{4,})\s*-\s*([A-Za-z0-9._-]+)$/;
+export const ID_LINE = /^(\d{4,})\s*-\s*([A-Za-z0-9._-]+)$/;
 
 export function parseRequestor(raw: string): { fields: RequestorFields; warnings: string[] } {
   const fields: RequestorFields = {
