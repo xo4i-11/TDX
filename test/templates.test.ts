@@ -152,9 +152,17 @@ test('every walk-up template ships canned steps to pre-fill the resolve box', ()
 // what lands in a client-visible comment.
 test('the canned steps are the desk wording, not a paraphrase', () => {
   const steps = (id: string): string => SHIPPED_TEMPLATES.find((t) => t.id === id)?.steps ?? '';
-  assert.equal(steps('eduroam'), 'download certificate\nclient was able to connect to eduroam');
-  assert.equal(steps('eduroam-reconfigure'), 'Forget the eduroam\nredownload certificate\nclient was able to connect to eduroam');
-  assert.equal(steps('password-reset'), 'Verified ID\nReset password\nclient was able to sign in with new password');
-  assert.equal(steps('duo'), 'download duo mobile and set up\nclient was able to sign in with duo');
-  assert.equal(steps('duo-bypass'), 'verified ID\nAssign Bypass Code to client\nclient was able to sign in with Duo');
+  assert.equal(steps('eduroam'), 'Downloaded the eduroam certificate\nConfirmed the client connected to eduroam');
+  assert.equal(steps('eduroam-reconfigure'), 'Removed the saved eduroam network\nDownloaded the eduroam certificate again\nConfirmed the client connected to eduroam');
+  assert.equal(steps('password-reset'), 'Verified the client ID\nReset the password\nConfirmed the client signed in with the new password');
+  assert.equal(steps('duo'), 'Installed Duo Mobile and completed enrollment\nConfirmed the client signed in with Duo');
+  assert.equal(steps('duo-bypass'), 'Verified the client ID\nIssued a bypass code to the client\nConfirmed the client signed in with Duo');
+});
+
+// Falsifiability: the panel decides "safe to replace" by comparing the box
+// against these strings, so two templates sharing a steps string would make
+// switching between them silently keep the old ones.
+test('every template has distinct canned steps', () => {
+  const all = SHIPPED_TEMPLATES.map((t) => (t.steps ?? '').trim()).filter(Boolean);
+  assert.equal(new Set(all).size, all.length);
 });

@@ -573,7 +573,7 @@ test('choosing a template pre-fills the steps box', async () => {
   change(template, doc);
   await settle();
   const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
-  assert.match(steps.value, /download certificate/);
+  assert.match(steps.value, /Downloaded the eduroam certificate/);
 });
 
 // Falsifiability: this sets the box's value WITHOUT dispatching 'input', the
@@ -711,11 +711,38 @@ test('the substituted steps land in the comment still red', async () => {
   await settle();
 
   const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
-  assert.match(steps.value, /Forget the eduroam/, 'picking a template must pre-fill its canned steps');
+  assert.match(steps.value, /Removed the saved eduroam network/, 'picking a template must pre-fill its canned steps');
   change(steps, doc);
   await settle();
 
   const html = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body.innerHTML ?? '';
-  assert.match(html, /<li>Forget the eduroam<\/li>/);
+  assert.match(html, /<li>Removed the saved eduroam network<\/li>/);
   assert.match(html, /color:\s*#c00[^>]*>\s*<ul>/i, 'the list must sit inside the red wrapper it replaced');
+});
+
+// Switching jobs mid-resolve has to correct the comment, not append to a
+// resolution describing the previous job's work.
+test('changing the template refills the comment with the new steps', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '');
+  wireTemplateMenu(doc);
+
+  const { $ } = await open(doc);
+  await settle();
+
+  const pick = async (id: string): Promise<void> => {
+    const select = must($<HTMLSelectElement>('select[name="template"]'), 'template select missing');
+    select.value = id;
+    change(select, doc);
+    await settle();
+  };
+
+  await pick('duo');
+  const first = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body.innerHTML ?? '';
+  assert.match(first, /Installed Duo Mobile/);
+
+  await pick('password-reset');
+  const second = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body.innerHTML ?? '';
+  assert.match(second, /Reset the password/);
+  assert.equal(second.includes('Installed Duo Mobile'), false, 'the previous job\u2019s steps must be gone');
 });

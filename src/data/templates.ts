@@ -40,7 +40,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'First Time Set Up Eduroam',
     summary: 'First Time Set Up Eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Set up eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'download certificate\nclient was able to connect to eduroam',
+    steps: 'Downloaded the eduroam certificate\nConfirmed the client connected to eduroam',
     service: null,
   },
   {
@@ -48,7 +48,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reconfigure Eduroam',
     summary: 'Reconfigure eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Reconfigure eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Forget the eduroam\nredownload certificate\nclient was able to connect to eduroam',
+    steps: 'Removed the saved eduroam network\nDownloaded the eduroam certificate again\nConfirmed the client connected to eduroam',
     service: null,
   },
   {
@@ -56,7 +56,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reset Password',
     summary: 'Reset Password -- {{ubitName}}',
     descriptionHtml: '<p>Reset password for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Verified ID\nReset password\nclient was able to sign in with new password',
+    steps: 'Verified the client ID\nReset the password\nConfirmed the client signed in with the new password',
     service: null,
   },
   {
@@ -64,7 +64,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Set Up Duo',
     summary: 'Set Up Duo -- {{ubitName}}',
     descriptionHtml: '<p>Set Up Duo for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'download duo mobile and set up\nclient was able to sign in with duo',
+    steps: 'Installed Duo Mobile and completed enrollment\nConfirmed the client signed in with Duo',
     service: null,
   },
   {
@@ -72,7 +72,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Assign Duo Bypass Code',
     summary: 'Assign Duo Bypass Code -- {{ubitName}}',
     descriptionHtml: '<p>Assign Duo Bypass Code to {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'verified ID\nAssign Bypass Code to client\nclient was able to sign in with Duo',
+    steps: 'Verified the client ID\nIssued a bypass code to the client\nConfirmed the client signed in with Duo',
     service: null,
   },
 ];

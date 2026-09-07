@@ -343,12 +343,18 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       state.templateId = select.value;
       state.confirmedService = null; // a new template means a new service decision
       state.confirmedOffering = null;
-      // Only pre-fill an empty box. Overwriting would destroy typed work —
-      // and Blank, the default, has no canned steps, so selecting it would
-      // silently erase everything the technician had written.
       if (mode === 'resolve') {
         syncSteps();
-        if (!state.steps.trim()) state.steps = (await selectedTemplate()).steps ?? '';
+        // Canned steps give way to canned steps, so switching jobs re-fills the
+        // comment with the right ones. Text the technician typed themselves is
+        // never overwritten — including by Blank, which has none.
+        if (!state.steps.trim() || await isCannedSteps(state.steps)) {
+          state.steps = (await selectedTemplate()).steps ?? '';
+        }
+        await render();
+        // The comment already holds the previous job's steps; leaving it there
+        // until the next blur would be a resolution describing the wrong work.
+        return fillNow();
       }
       return render();
     }));
@@ -415,6 +421,12 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
     el.append(row);
     return el;
+  }
+
+  /** Whether the box still holds some template's canned steps, unedited — the test for "safe to replace". */
+  async function isCannedSteps(text: string): Promise<boolean> {
+    const current = text.trim();
+    return (await templates()).some((t) => (t.steps ?? '').trim() === current && current !== '');
   }
 
   /** Pulls the steps box's current text into state, covering a value change that fired no 'input' event. */
