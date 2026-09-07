@@ -101,6 +101,8 @@ export interface Template {
   summary: string;
   descriptionHtml: string;
   service: Captured | null;
+  /** The Service Offering under `service` — TDX treats the pair as one choice ("Wi-Fi / Wi-Fi Issue"). */
+  serviceOffering?: Captured | null;
 }
 
 /** One past ticket the technician confirmed, used to suggest a service later. */

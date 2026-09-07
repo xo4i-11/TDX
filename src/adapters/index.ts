@@ -17,8 +17,11 @@ import { fillLookup, readLookup } from './lookup.ts';
 import { fillRichText, readRichText, type FillRichTextOptions } from './richtext.ts';
 import type { AdapterResult, Control } from '../types.ts';
 
-/** Everything a fill needs beyond the control and the value. Only richtext uses it (the bridge to CKEditor). */
-export type ApplyContext = FillRichTextOptions;
+/** Everything a fill needs beyond the control and the value: the CKEditor bridge, plus a way back to a control an earlier write detached. */
+export type ApplyContext = FillRichTextOptions & {
+  /** Re-resolves one field against the live DOM. executeFill calls it when a control left the page mid-run. */
+  refind?: (fieldKey: string) => Promise<Control | null>;
+};
 
 export async function applyValue(control: Control, value: unknown, ctx: ApplyContext = {}): Promise<AdapterResult> {
   switch (control.shape) {

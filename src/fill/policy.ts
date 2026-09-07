@@ -20,6 +20,7 @@ export interface PlanFillArgs {
   requestor: RequestorFields;
   template?: Template | null;
   service?: Captured | null;
+  serviceOffering?: Captured | null;
   settings: Settings;
   now?: Date;
 }
@@ -38,7 +39,7 @@ type ValueOutcome =
  * resolution and settings it's given, touches no DOM, awaits nothing.
  */
 export function planFill({
-  resolution, requestor, template = null, service = null, settings, now = new Date(),
+  resolution, requestor, template = null, service = null, serviceOffering = null, settings, now = new Date(),
 }: PlanFillArgs): FillRow[] {
   const rendered: Rendered = template
     ? renderTemplate(template, requestor, { now })
@@ -58,7 +59,7 @@ export function planFill({
       continue;
     }
 
-    const outcome = valueFor(fieldKey, { rendered, requestor, service });
+    const outcome = valueFor(fieldKey, { rendered, requestor, service, serviceOffering });
     if (outcome.kind === 'blocked') {
       rows.push({ ...report(def, outcome.status, outcome.detail), control: match.control, confidence: match.confidence });
       continue;
@@ -117,7 +118,11 @@ export async function executeFill(rows: FillRow[], ctx: ApplyContext = {}): Prom
       done.push({ ...row, status: 'failed', detail: 'internal error: write row has no control' });
       continue;
     }
-    if (!row.control.el.isConnected) {
+    // Writing Service is itself what tears the dependent Service Offering
+    // control out of the page, so re-resolve before giving up on it.
+    let control = row.control;
+    if (!control.el.isConnected && ctx.refind) control = (await ctx.refind(row.fieldKey)) ?? control;
+    if (!control.el.isConnected) {
       // The one silent failure read-back cannot catch: an ASP.NET partial
       // postback (often triggered by an earlier adapter's own change event)
       // swapped this control's subtree out. Writing the detached node would
@@ -126,8 +131,8 @@ export async function executeFill(rows: FillRow[], ctx: ApplyContext = {}): Prom
       done.push({ ...row, status: 'failed', detail: 'the control left the page since the form was scanned; rescan and retry' });
       continue;
     }
-    const result = await applyValue(row.control, row.value, ctx);
-    done.push({ ...row, status: result.status, detail: result.detail });
+    const result = await applyValue(control, row.value, ctx);
+    done.push({ ...row, control, status: result.status, detail: result.detail });
   }
   return done;
 }
@@ -138,7 +143,8 @@ export async function runFill(args: PlanFillArgs, ctx: ApplyContext = {}): Promi
 
 function valueFor(
   fieldKey: string,
-  { rendered, requestor, service }: { rendered: Rendered; requestor: RequestorFields; service: Captured | null },
+  { rendered, requestor, service, serviceOffering }:
+    { rendered: Rendered; requestor: RequestorFields; service: Captured | null; serviceOffering: Captured | null },
 ): ValueOutcome {
   switch (fieldKey) {
     case 'ubitName':
@@ -158,6 +164,12 @@ function valueFor(
       return service?.id && service.text
         ? { kind: 'value', value: service }
         : { kind: 'blocked', status: 'needs-confirm', detail: 'no confirmed service — pick or confirm one in the panel before filling' };
+    case 'serviceOffering':
+      // Optional: plenty of services have no offering under them, so a missing
+      // one is a skip, not the needs-confirm that blocks the service itself.
+      return serviceOffering?.id && serviceOffering.text
+        ? { kind: 'value', value: serviceOffering }
+        : { kind: 'blocked', status: 'skipped', detail: 'no service offering captured for this template' };
     default:
       return { kind: 'blocked', status: 'skipped', detail: OUT_OF_SCOPE };
   }

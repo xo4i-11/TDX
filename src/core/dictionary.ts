@@ -269,7 +269,7 @@ export const DICTIONARY: FieldDef[] = [
 ];
 
 /** The five fields the extension writes, in the order it writes them. */
-export const FILL_SET: string[] = ['ubitName', 'briefSummary', 'description', 'source', 'service'];
+export const FILL_SET: string[] = ['ubitName', 'briefSummary', 'description', 'source', 'service', 'serviceOffering'];
 
 // ponytail: linear find over ~23 entries — a Map index isn't worth it at this size.
 export function byKey(key: string): FieldDef | undefined {
