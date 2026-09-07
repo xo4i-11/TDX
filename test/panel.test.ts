@@ -573,7 +573,7 @@ test('choosing a template pre-fills the steps box', async () => {
   change(template, doc);
   await settle();
   const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
-  assert.match(steps.value, /CAT configuration tool/);
+  assert.match(steps.value, /download certificate/);
 });
 
 // Falsifiability: this sets the box's value WITHOUT dispatching 'input', the
@@ -693,4 +693,29 @@ test('a CKEditor placeholder paragraph does not count as an occupied comment box
 
   const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
   assert.match(editor?.innerHTML ?? '', /Your ticket has been resolved/);
+});
+
+// End to end: the bullets that land in the editor must be red, because they
+// replace red placeholder text and a black list reads as canned wording.
+test('the substituted steps land in the comment still red', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '');
+  wireTemplateMenu(doc);
+
+  const { $ } = await open(doc);
+  await settle();
+
+  const template = must($<HTMLSelectElement>('select[name="template"]'), 'template select missing');
+  template.value = 'eduroam-reconfigure';
+  change(template, doc);
+  await settle();
+
+  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  assert.match(steps.value, /Forget the eduroam/, 'picking a template must pre-fill its canned steps');
+  change(steps, doc);
+  await settle();
+
+  const html = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body.innerHTML ?? '';
+  assert.match(html, /<li>Forget the eduroam<\/li>/);
+  assert.match(html, /color:\s*#c00[^>]*>\s*<ul>/i, 'the list must sit inside the red wrapper it replaced');
 });

@@ -15,6 +15,8 @@ export interface RedBlock {
   text: string;
   /** The whole block that would be replaced, so the preview can show what is lost. */
   html: string;
+  /** The colour declaration that identified it, reused so the substituted steps read as red too. */
+  color: string;
 }
 
 /**
@@ -34,10 +36,11 @@ export function isBlankHtml(html: string): boolean {
 
 export function findRedBlocks(html: string, doc: Document): RedBlock[] {
   const { blocks } = analyse(html, doc);
-  return blocks.map(({ el, run }, index) => ({
+  return blocks.map(({ el, run, color }, index) => ({
     index,
     text: (run.textContent ?? '').trim(),
     html: el.outerHTML,
+    color,
   }));
 }
 
@@ -51,27 +54,33 @@ export function toStepsTemplate(html: string, doc: Document, index: number): str
   const target = blocks[index];
   if (!target) return html;
 
-  const placeholder = root.ownerDocument.createElement('p');
+  // A div, not a p: the steps substitute in as a <ul>, and a list inside a
+  // paragraph is the nesting CKEditor quietly rearranges. The colour rides on
+  // the wrapper so the bullets inherit the template's red rather than each
+  // line carrying its own span.
+  const placeholder = root.ownerDocument.createElement('div');
+  if (target.color) placeholder.setAttribute('style', `color: ${target.color}`);
   placeholder.textContent = '{{steps}}';
   target.el.replaceWith(placeholder);
   return root.innerHTML;
 }
 
 /** Parses once and pairs every red run with its block. Shared so both exports agree on what "block 0" means. */
-function analyse(html: string, doc: Document): { root: HTMLElement; blocks: { el: Element; run: Element }[] } {
+function analyse(html: string, doc: Document): { root: HTMLElement; blocks: { el: Element; run: Element; color: string }[] } {
   // A detached document: parsing into the live page would run nothing (no
   // scripts, no resource loads) but would still be someone else's DOM to mutate.
   const parsed = doc.implementation.createHTMLDocument('');
   parsed.body.innerHTML = html;
 
-  const blocks: { el: Element; run: Element }[] = [];
+  const blocks: { el: Element; run: Element; color: string }[] = [];
   const seen = new Set<Element>();
   for (const run of parsed.body.querySelectorAll('*')) {
-    if (!isRed(run)) continue;
+    const color = redColour(run);
+    if (!color) continue;
     const el = blockAncestor(run, parsed.body);
     if (seen.has(el)) continue;
     seen.add(el);
-    blocks.push({ el, run });
+    blocks.push({ el, run, color });
   }
   return { root: parsed.body, blocks };
 }
@@ -85,14 +94,15 @@ function blockAncestor(run: Element, root: Element): Element {
   return el && BLOCK_TAGS.has(el.tagName) ? el : run;
 }
 
-function isRed(el: Element): boolean {
-  const attr = el.getAttribute('color');
-  if (attr && isRedValue(attr.trim().toLowerCase())) return true;
+/** The element's own red colour declaration, or '' when it has none. Returned as written so the rewrite can reuse it verbatim. */
+function redColour(el: Element): string {
+  const attr = el.getAttribute('color')?.trim();
+  if (attr && isRedValue(attr.toLowerCase())) return attr;
 
   const style = el.getAttribute('style');
-  if (!style) return false;
-  const colour = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(style)?.[1];
-  return Boolean(colour && isRedValue(colour.trim().toLowerCase()));
+  if (!style) return '';
+  const colour = /(?:^|;)\s*color\s*:\s*([^;]+)/i.exec(style)?.[1]?.trim();
+  return colour && isRedValue(colour.toLowerCase()) ? colour : '';
 }
 
 /** Red-dominant, not "any warm colour": r must be high and clearly beat both g and b. */

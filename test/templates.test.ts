@@ -147,3 +147,14 @@ test('every walk-up template ships canned steps to pre-fill the resolve box', ()
     assert.ok((t.steps ?? '').trim(), `${t.name} has no canned steps`);
   }
 });
+
+// The five walk-up jobs, in the desk's own words. Pinned because the steps are
+// what lands in a client-visible comment.
+test('the canned steps are the desk wording, not a paraphrase', () => {
+  const steps = (id: string): string => SHIPPED_TEMPLATES.find((t) => t.id === id)?.steps ?? '';
+  assert.equal(steps('eduroam'), 'download certificate\nclient was able to connect to eduroam');
+  assert.equal(steps('eduroam-reconfigure'), 'Forget the eduroam\nredownload certificate\nclient was able to connect to eduroam');
+  assert.equal(steps('password-reset'), 'Verified ID\nReset password\nclient was able to sign in with new password');
+  assert.equal(steps('duo'), 'download duo mobile and set up\nclient was able to sign in with duo');
+  assert.equal(steps('duo-bypass'), 'verified ID\nAssign Bypass Code to client\nclient was able to sign in with Duo');
+});

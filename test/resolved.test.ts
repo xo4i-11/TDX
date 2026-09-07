@@ -68,3 +68,24 @@ test('real content is not blank', () => {
     assert.equal(isBlankHtml(html), false, `${JSON.stringify(html)} should not be blank`);
   }
 });
+
+// The technician's steps have to read as the placeholder they replace: TDX's
+// resolved boilerplate colours that block red, and a black list in the middle
+// of it looks like part of the canned wording.
+test('the placeholder block keeps the red it replaced', () => {
+  const out = toStepsTemplate('<p>Hi</p><p><span style="color:#c00">steps taken</span></p>', doc, 0);
+  assert.match(out, /\{\{steps\}\}/);
+  assert.match(out, /color:\s*#c00/i, 'the replaced block must still carry the template red');
+});
+
+test('the reported block carries the colour it was found by', () => {
+  const blocks = findRedBlocks('<p><font color="red">x</font></p>', doc);
+  assert.equal(blocks[0]?.color, 'red');
+});
+
+// Falsifiability: a <ul> inside a <p> is the nesting CKEditor rearranges, so
+// the coloured wrapper must be a div.
+test('the coloured placeholder is a div, so a list can live inside it', () => {
+  const out = toStepsTemplate('<p><span style="color:red">x</span></p>', doc, 0);
+  assert.match(out, /<div[^>]*>\{\{steps\}\}<\/div>/);
+});

@@ -40,7 +40,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'First Time Set Up Eduroam',
     summary: 'First Time Set Up Eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Set up eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Removed the stale eduroam profile from the device\nRan the eduroam CAT configuration tool\nSigned in with UBITName credentials and accepted the certificate prompt\nConfirmed the device reached the internet',
+    steps: 'download certificate\nclient was able to connect to eduroam',
     service: null,
   },
   {
@@ -48,7 +48,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reconfigure Eduroam',
     summary: 'Reconfigure eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Reconfigure eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Forgot the existing eduroam network on the device\nRe-ran the eduroam CAT configuration tool\nConfirmed the device reconnected and reached the internet',
+    steps: 'Forget the eduroam\nredownload certificate\nclient was able to connect to eduroam',
     service: null,
   },
   {
@@ -56,7 +56,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reset Password',
     summary: 'Reset Password -- {{ubitName}}',
     descriptionHtml: '<p>Reset password for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Verified photo ID in person against the account record\nUser set the new password themselves\nReminded them to update saved credentials on phones, tablets and eduroam profiles\nConfirmed sign-in before they left',
+    steps: 'Verified ID\nReset password\nclient was able to sign in with new password',
     service: null,
   },
   {
@@ -64,7 +64,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Set Up Duo',
     summary: 'Set Up Duo -- {{ubitName}}',
     descriptionHtml: '<p>Set Up Duo for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Verified identity in person\nInstalled Duo Mobile and enrolled the device\nTested a push notification end to end\nDiscussed a backup method in case the phone is lost',
+    steps: 'download duo mobile and set up\nclient was able to sign in with duo',
     service: null,
   },
   {
@@ -72,7 +72,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Assign Duo Bypass Code',
     summary: 'Assign Duo Bypass Code -- {{ubitName}}',
     descriptionHtml: '<p>Assign Duo Bypass Code to {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
-    steps: 'Verified identity in person\nGenerated a bypass code and gave it to the requestor\nExplained that the code is single-use and expires\nConfirmed they could sign in with it',
+    steps: 'verified ID\nAssign Bypass Code to client\nclient was able to sign in with Duo',
     service: null,
   },
 ];
