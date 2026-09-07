@@ -20,7 +20,8 @@ export const PANEL_CSS = `
 .panel {
   --ink: #f2ede7;
   --dim: #a49c92;
-  --line: #ffffff1a;
+  --line: #3b3833;
+  --field: #121110;
   --accent: #f0a71c;
   --ease: cubic-bezier(.22, 1, .36, 1);
 
@@ -30,27 +31,17 @@ export const PANEL_CSS = `
      Needs a non-visible overflow, which the rounded shell wants anyway. */
   overflow: hidden; resize: both;
   min-width: 280px; min-height: 150px; max-width: 96vw; max-height: 92vh;
-  background: linear-gradient(180deg, #22201ef2, #17161582);
+  background: #1b1a18;
   color: var(--ink);
   border: 1px solid var(--line); border-radius: 18px;
-  box-shadow:
-    0 0 0 1px #00000059,
-    0 1px 0 #ffffff17 inset,
-    0 24px 60px -20px #000000a6,
-    0 4px 14px -6px #00000073;
-  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 18px 44px -16px #000000a6, 0 3px 10px -4px #0000006b;
   font-size: 13px; line-height: 1.5; z-index: 2147483000;
-  transition: width .32s var(--ease), border-radius .32s var(--ease), box-shadow .2s ease;
-  animation: tdxa-in .28s var(--ease) both;
-}
-@keyframes tdxa-in {
-  from { opacity: 0; transform: translateY(10px) scale(.97); }
-  to   { opacity: 1; transform: none; }
+  transition: width .28s var(--ease), border-radius .28s var(--ease), box-shadow .2s ease;
 }
 .panel[data-dragging] {
   transition: none;
   cursor: grabbing;
-  box-shadow: 0 0 0 1px #00000059, 0 1px 0 #ffffff17 inset, 0 34px 70px -18px #000000bf;
+  box-shadow: 0 26px 58px -14px #000000bf;
 }
 
 /* The grip itself: Chrome paints a grey triangle, so hide it behind our own. */
@@ -73,7 +64,7 @@ export const PANEL_CSS = `
 .panel[data-collapsed="true"] button:not([data-collapse]) { display: none; }
 .panel[data-collapsed="true"] [data-collapse] {
   width: 34px; height: 34px; font-size: 15px;
-  background: linear-gradient(180deg, #ffc44d, var(--accent)); color: #1b1a18; border-color: #ffffff2e;
+  background: var(--accent); color: #1b1a18; border-color: #ffc44d;
 }
 .panel[data-collapsed="true"] [data-collapse]:hover { transform: scale(1.06); }
 .panel[data-collapsed="true"] [data-error] { display: none; }
@@ -101,32 +92,37 @@ export const PANEL_CSS = `
   transition: max-height .32s var(--ease), opacity .2s ease, padding .32s var(--ease);
 }
 .body::-webkit-scrollbar { width: 9px; }
-.body::-webkit-scrollbar-thumb { background: #ffffff1f; border: 3px solid transparent; background-clip: content-box; border-radius: 999px; }
-.body::-webkit-scrollbar-thumb:hover { background: #ffffff33; background-clip: content-box; }
+.body::-webkit-scrollbar-thumb { background: #4a453e; border: 3px solid transparent; background-clip: content-box; border-radius: 999px; }
+.body::-webkit-scrollbar-thumb:hover { background: #625b52; background-clip: content-box; }
 
 section { display: flex; flex-direction: column; gap: 7px; }
-section + section { border-top: 1px solid #ffffff10; padding-top: 13px; }
+section + section { border-top: 1px solid #2b2825; padding-top: 13px; }
 h2 { margin: 0; font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
 
 textarea, input, select {
   width: 100%; padding: 8px 10px; font: inherit;
-  background: #ffffff0a; color: var(--ink);
+  background: var(--field); color: var(--ink);
   border: 1px solid var(--line); border-radius: 10px;
   transition: background .15s ease, border-color .15s ease;
 }
-textarea:hover, input:hover, select:hover { background: #ffffff12; border-color: #ffffff2b; }
-textarea:focus, input:focus, select:focus { background: #ffffff12; border-color: #ffffff40; }
+textarea:hover, input:hover, select:hover { border-color: #5c564d; }
+textarea:focus, input:focus, select:focus { border-color: #7a7268; }
+/* The popup list is painted by the OS, not by this shadow root: without an
+   explicit pair it inherits the page's white background and keeps our light
+   text, which is white on white. */
+select { color-scheme: dark; }
+option { background: #1f1d1b; color: var(--ink); }
 textarea { min-height: 78px; resize: vertical; }
 
 button {
   padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer;
-  background: #ffffff12; color: var(--ink);
+  background: #2c2926; color: var(--ink);
   border: 1px solid var(--line); border-radius: 10px;
   transition: background .15s ease, border-color .15s ease, transform .12s var(--ease);
 }
-button:hover { background: #ffffff1f; border-color: #ffffff2e; }
+button:hover { background: #3a3630; border-color: #5c564d; }
 button:active { transform: scale(.96); }
-button.primary { background: linear-gradient(180deg, #ffc44d, var(--accent)); border-color: #ffffff2e; color: #1b1a18; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #1b1a18; }
 button.primary:hover { filter: brightness(1.06); }
 
 /* Header controls are round chips, so the whole thing reads as one object. */
