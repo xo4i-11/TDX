@@ -481,3 +481,38 @@ test('a mount that fails partway leaves no orphan host element on the page', asy
   await assert.rejects(createPanel({ doc, stores, bridge }), /Extension context invalidated/);
   assert.equal(doc.getElementById('tdx-autofill-host'), null, 'a failed mount must not leave a host behind');
 });
+
+// The Requestor card TDX renders beside the form, as markup, not as a paste.
+const CARD = `<div class="card"><h3>Requestor</h3>
+  <a href="/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310">Anh Duy Nghiem</a>
+  <a href="mailto:duynghie@buffalo.edu">duynghie@buffalo.edu</a>
+  <div>Student Assistant - ITCX Tech Squad</div>
+  <div>University at Buffalo</div>
+  <div>50583450 - duynghie</div></div>`;
+
+test('the UBITName is read off the requestor card at mount, with no paste and no click', async () => {
+  const doc = loadFixture();
+  const card = doc.createElement('div');
+  card.innerHTML = CARD;
+  doc.body.append(card);
+
+  const { $ } = await open(doc);
+  const parsed = must($('.parsed'), 'parsed list must render from the detected requestor').textContent ?? '';
+  assert.match(parsed, /duynghie/, 'UBITName not detected');
+  assert.match(parsed, /50583450/, 'person number not detected');
+  assert.match(parsed, /b067308b-2198-ef11-9c36-f06ebc4e4310/, 'GUID not detected');
+});
+
+test('a detected UBITName is filled instead of the "Unknown" placeholder', async () => {
+  const doc = loadFixture();
+  const card = doc.createElement('div');
+  card.innerHTML = CARD;
+  doc.body.append(card);
+
+  const { $ } = await open(doc);
+  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  await settle();
+  const ubit = doc.querySelector<HTMLInputElement>('#attribute2445');
+  assert.ok(ubit, 'UBITName input missing from the fixture');
+  assert.equal(ubit.value, 'duynghie');
+});

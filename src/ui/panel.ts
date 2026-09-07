@@ -13,7 +13,7 @@ import { harvest } from '../core/harvest.ts';
 import { resolve } from '../core/resolve.ts';
 import { formSignature } from '../core/signature.ts';
 import { DICTIONARY } from '../core/dictionary.ts';
-import { parseRequestor } from '../data/parser.ts';
+import { ID_LINE, parseRequestor } from '../data/parser.ts';
 import { EMPTY_REQUESTOR, SHIPPED_TEMPLATES } from '../data/templates.ts';
 import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
@@ -84,6 +84,14 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   const signature = formSignature(document);
   const learned = await stores.learned.get(signature);
   let resolution: Resolution = resolve(controls, { learned });
+
+  // The requestor is already on the page — read it before the first render so
+  // the panel opens with the UBITName filled in rather than waiting for a paste.
+  const detected = readRequestorFromPage(document, resolution);
+  if (Object.keys(detected).length) {
+    state.requestor = { ...EMPTY_REQUESTOR, ...detected };
+    state.warnings = missingWarnings(state.requestor);
+  }
 
   /**
    * Re-reads the form. TDX is ASP.NET WebForms: an AutoPostBack select or a
@@ -525,11 +533,12 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 }
 
 /**
- * Recovers the requestor TDX already knows about, from the form's own URL and
- * the data-default blob on the requestor lookup. Yields the GUID and the name
- * and nothing else — the paste path remains the complete one.
+ * Recovers the requestor TDX already knows about, from the form's own URL, the
+ * data-default blob on the requestor lookup, and the Requestor card TDX renders
+ * beside the form. Returns only the fields it actually found, so it can be
+ * merged over a paste without blanking what the paste got right.
  */
-function readRequestorFromPage(doc: Document, resolution: Resolution): Pick<RequestorFields, 'personGuid' | 'name'> {
+function readRequestorFromPage(doc: Document, resolution: Resolution): Partial<RequestorFields> {
   const url = doc.defaultView?.location.href ?? '';
   const fromUrl = url.match(/RequestorUID=([0-9a-f-]{36})/i)?.[1] ?? null;
 
@@ -541,7 +550,48 @@ function readRequestorFromPage(doc: Document, resolution: Resolution): Pick<Requ
   // same logic this file used to duplicate with its own JSON.parse.
   const name = control ? readLookup(control) || null : null;
 
-  return { personGuid, name };
+  const found: Partial<RequestorFields> = {};
+  for (const [key, value] of Object.entries(readRequestorCard(doc)) as [keyof RequestorFields, string | null][]) {
+    if (value) found[key] = value;
+  }
+  if (personGuid) found.personGuid = personGuid;
+  if (name) found.name = name;
+  return found;
+}
+
+/**
+ * Reads the Requestor card — the sidebar block carrying the email, the title,
+ * and the "50583450 - duynghie" ID line that is the only authoritative source
+ * of the UBITName. TDX renders it as free text with no stable id or class, so
+ * this anchors on that ID line rather than on markup that changes per skin,
+ * then hands the surrounding block to the same parser the paste path uses.
+ */
+function readRequestorCard(doc: Document): Partial<RequestorFields> {
+  if (!doc.body) return {};
+  const walker = doc.createTreeWalker(doc.body, 4 /* NodeFilter.SHOW_TEXT */);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!ID_LINE.test((node.textContent ?? '').trim())) continue;
+    let block = node.parentElement;
+    // Climb to the block that also holds the email: the card, not the bare line.
+    for (let hops = 0; hops < 5 && block?.parentElement; hops++) {
+      if (block.querySelector('a[href^="mailto:"]')) break;
+      block = block.parentElement;
+    }
+    if (block) return parseRequestor(blockLines(block)).fields;
+  }
+  return {};
+}
+
+/** textContent collapses the card to one line, and jsdom has no innerText — so rebuild one line per text node. */
+function blockLines(el: Element): string {
+  const doc = el.ownerDocument;
+  const walker = doc.createTreeWalker(el, 4 /* NodeFilter.SHOW_TEXT */);
+  const lines: string[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = (node.textContent ?? '').trim();
+    if (text) lines.push(text);
+  }
+  return lines.join('\n');
 }
 
 /** Turns a caught rejection into panel text a technician can act on, e.g. "Extension context invalidated." */
