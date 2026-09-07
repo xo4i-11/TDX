@@ -177,3 +177,55 @@ test('a write row whose control left the page is refused, not written and report
   assert.match(after.detail, /left the page/i);
   assert.equal(doc.getElementById('attribute2445'), null, 'baseline: the control really is off the page');
 });
+
+const OFFERING = { id: '4321', text: 'Wi-Fi Issue' };
+
+test('the service offering is written after the service', async () => {
+  const { doc, resolution } = setup();
+  const rows = await runFill({
+    resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, serviceOffering: OFFERING,
+    settings: settings({ overwrite: true }),
+  }, { bridge });
+  assert.equal(row(rows, 'serviceOffering')?.status, 'filled');
+  assert.equal(inputEl(doc, 'attribute1932').value, OFFERING.id);
+  assert.equal(inputEl(doc, 'attribute1932_input').value, OFFERING.text);
+  const keys = rows.filter((r) => r.action === 'write').map((r) => r.fieldKey);
+  assert.ok(keys.indexOf('service') < keys.indexOf('serviceOffering'), 'service must be written before its offering');
+});
+
+// Not every service has an offering under it, so a missing one must not block the fill.
+test('no captured offering is a skip, not a needs-confirm', async () => {
+  const { resolution } = setup();
+  const rows = await runFill({
+    resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, settings: settings({ overwrite: true }),
+  }, { bridge });
+  assert.equal(row(rows, 'serviceOffering')?.status, 'skipped');
+});
+
+// Falsifiability: TDX rebuilds the Service Offering lookup when Service is
+// written, so the control planFill captured is detached by the time its turn
+// comes. Without refind this row comes back 'failed'.
+test('a control detached by an earlier write is re-found rather than abandoned', async () => {
+  const { doc, resolution } = setup();
+  const rows = planFill({
+    resolution, requestor: REQUESTOR, template: EDUROAM, service: SERVICE, serviceOffering: OFFERING,
+    settings: settings({ overwrite: true }),
+  });
+
+  // Stand in for the partial postback: swap the offering's whole subtree for a copy.
+  const stale = resolution.byField.get('serviceOffering')?.control.el;
+  assert.ok(stale);
+  const fresh = stale.cloneNode(true) as Element;
+  stale.replaceWith(fresh);
+  assert.equal(stale.isConnected, false, 'the planned control must actually be detached');
+
+  const abandoned = await executeFill(rows, { bridge });
+  assert.equal(row(abandoned, 'serviceOffering')?.status, 'failed');
+
+  const rescued = await executeFill(rows, {
+    bridge,
+    refind: async (fieldKey) => resolve(harvest(doc)).byField.get(fieldKey)?.control ?? null,
+  });
+  assert.equal(row(rescued, 'serviceOffering')?.status, 'filled');
+  assert.equal(inputEl(doc, 'attribute1932').value, OFFERING.id);
+});

@@ -21,8 +21,10 @@ test('keys are unique', () => {
   assert.equal(new Set(keys).size, keys.length);
 });
 
-test('the fill set is exactly the five writable fields, in order', () => {
-  assert.deepEqual(FILL_SET, ['ubitName', 'briefSummary', 'description', 'source', 'service']);
+// Order matters: Service Offering is a dependent lookup, so Service must be
+// written first or TDX has no offering list to accept the write against.
+test('the fill set is exactly the six writable fields, in order', () => {
+  assert.deepEqual(FILL_SET, ['ubitName', 'briefSummary', 'description', 'source', 'service', 'serviceOffering']);
 });
 
 test('every fill-set key exists in the dictionary and is not marked neverWrite', () => {

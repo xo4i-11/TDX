@@ -63,6 +63,8 @@ interface PanelState {
   pasteText: string;
   templateId: string;
   confirmedService: Captured | null;
+  /** The Service Offering under confirmedService, captured with it. */
+  confirmedOffering: Captured | null;
   rows: FillRow[];
   showDiagnostics: boolean;
   showSettings: boolean;
@@ -75,6 +77,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     pasteText: '',
     templateId: 'blank',
     confirmedService: null,
+    confirmedOffering: null,
     rows: [],
     showDiagnostics: false,
     showSettings: false,
@@ -306,6 +309,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     select.addEventListener('change', guarded(() => {
       state.templateId = select.value;
       state.confirmedService = null; // a new template means a new service decision
+      state.confirmedOffering = null;
       return render();
     }));
     el.append(select);
@@ -320,7 +324,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const line = document.createElement('p');
     line.className = 'note';
     if (chosen) {
-      line.textContent = `${chosen.text} (id ${chosen.id}) — ${state.confirmedService ? 'confirmed' : 'template default'}`;
+      const offering = state.confirmedOffering ?? (state.confirmedService ? null : (await selectedTemplate()).serviceOffering ?? null);
+      const pair = offering ? `${chosen.text} / ${offering.text} (ids ${chosen.id} / ${offering.id})` : `${chosen.text} (id ${chosen.id})`;
+      line.textContent = `${pair} — ${state.confirmedService ? 'confirmed' : 'template default'}`;
     } else if (suggestion.kind === 'suggested') {
       line.textContent = `Suggested: ${suggestion.service.text} — ${suggestion.score} similarity, from ${suggestion.evidence.length} prior example(s). Confirm to use it.`;
     } else {
@@ -342,6 +348,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     }
 
     const capture = button('Capture service from form', async () => {
+      // The form is the source of truth for both halves and TDX rebuilds the
+      // offering lookup when Service changes, so read the live DOM, not the
+      // resolution captured at mount.
+      await rescan();
       const control = resolution.byField.get('service')?.control;
       const captured = control ? captureLookup(control) : null;
       if (!captured) {
@@ -350,9 +360,14 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
         setError('Could not capture a service: nothing is selected in the Service lookup on the form.');
         return render();
       }
+      // Optional half: "Wi-Fi / Wi-Fi Issue" is a Service plus an Offering,
+      // but plenty of services have no offering under them at all.
+      const offeringControl = resolution.byField.get('serviceOffering')?.control;
+      const offering = offeringControl ? captureLookup(offeringControl) : null;
       const template = await selectedTemplate();
-      await stores.templates.save({ ...template, service: captured });
+      await stores.templates.save({ ...template, service: captured, serviceOffering: offering });
       state.confirmedService = captured;
+      state.confirmedOffering = offering;
       return render();
     });
     capture.setAttribute('data-capture-service', '');
@@ -385,14 +400,24 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const template = await selectedTemplate();
       const suggestion = await serviceSuggestion();
       const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
+      const serviceOffering = state.confirmedOffering ?? (state.confirmedService ? null : template.serviceOffering ?? null);
       state.rows = await runFill({
         resolution,
         requestor: state.requestor ?? EMPTY_REQUESTOR,
         template,
         service,
+        serviceOffering,
         settings: await stores.settings.get(),
         now: now(),
-      }, { bridge });
+      }, {
+        bridge,
+        // Writing Service makes TDX rebuild the Service Offering lookup, so the
+        // control planFill captured for it is detached by the time its turn comes.
+        refind: async (fieldKey) => {
+          await rescan();
+          return resolution.byField.get(fieldKey)?.control ?? null;
+        },
+      });
       highlightFilled(state.rows, document);
       return render();
     }, 'primary');
