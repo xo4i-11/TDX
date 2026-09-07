@@ -198,22 +198,29 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     applyZoom();
     await stores.settings.patch({ zoom });
     await render();
+    keepOnScreen();
   }
 
   async function setCollapsed(collapsed: boolean): Promise<void> {
     panel.dataset.collapsed = String(collapsed);
     await stores.settings.patch({ collapsed });
     await render();
+    // The bubble and the open panel are different sizes: what fitted collapsed
+    // at the screen edge does not fit expanded.
+    keepOnScreen();
   }
 
-  /** Keeps the panel reachable when the window is smaller than it was when the position was saved. */
+  /** Where the panel was dragged to, or null while it still sits in its default corner. */
+  let at: { x: number; y: number } | null = null;
+
+  /** Clamps to the viewport: the panel can never be dragged, zoomed or resized off-screen. */
   function place(x: number, y: number): { x: number; y: number } {
     const view = document.defaultView;
     const width = panel.offsetWidth * zoom || 330;
     const height = panel.offsetHeight * zoom || 120;
     const maxX = Math.max(0, (view?.innerWidth ?? width) - width);
     const maxY = Math.max(0, (view?.innerHeight ?? height) - height);
-    const at = { x: Math.min(maxX, Math.max(0, x)), y: Math.min(maxY, Math.max(0, y)) };
+    at = { x: Math.min(maxX, Math.max(0, x)), y: Math.min(maxY, Math.max(0, y)) };
     // left/top only once dragged — the CSS default (bottom right) is what an
     // untouched panel should keep, including after a window resize.
     panel.style.left = `${at.x}px`;
@@ -222,6 +229,17 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     panel.style.bottom = 'auto';
     return at;
   }
+
+  /**
+   * Re-clamps after anything that changes the panel's size or the window's:
+   * expanding, zooming in, or the technician resizing the browser. Without
+   * this, a panel dragged to the right edge and then expanded hangs off it.
+   */
+  function keepOnScreen(): void {
+    if (at) place(at.x, at.y);
+  }
+  const onResize = (): void => keepOnScreen();
+  document.defaultView?.addEventListener('resize', onResize);
 
   /**
    * Drag by the header. Pointer events, not mouse events: one code path covers
@@ -249,8 +267,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
         delete panel.dataset.dragging;
-        const at = place(upEvent.clientX - offsetX, upEvent.clientY - offsetY);
-        stores.settings.patch({ panelX: at.x, panelY: at.y }).catch((error: unknown) => {
+        const dropped = place(upEvent.clientX - offsetX, upEvent.clientY - offsetY);
+        stores.settings.patch({ panelX: dropped.x, panelY: dropped.y }).catch((error: unknown) => {
           setError(describeError(error));
         });
       };
@@ -629,6 +647,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     refresh: render,
     destroy() {
       document.removeEventListener('keydown', onEscape);
+      document.defaultView?.removeEventListener('resize', onResize);
       // highlightFilled (results.ts) marks controls on the page itself, not
       // inside this panel's shadow root — those dashed outlines must not
       // outlive the panel.

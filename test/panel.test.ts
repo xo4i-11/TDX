@@ -210,6 +210,27 @@ test('the panel is dragged by its header and remembers where it was dropped', as
   assert.deepEqual([saved.panelX, saved.panelY], [100, 70]);
 });
 
+test('the panel can never be dragged off the screen', async () => {
+  const { $, doc, stores } = await open();
+  const view = doc.defaultView;
+  assert.ok(view);
+  const head = must($<HTMLElement>('.head'), 'header missing');
+  const drag = (type: string, x: number, y: number): void => {
+    head.dispatchEvent(new view.MouseEvent(type, { bubbles: true, clientX: x, clientY: y }));
+  };
+
+  drag('pointerdown', 10, 10);
+  drag('pointermove', 9000, 9000);
+  drag('pointerup', 9000, 9000);
+  await settle();
+
+  const saved = await stores.settings.get();
+  assert.ok((saved.panelX ?? 0) <= view.innerWidth, `x ${saved.panelX} is past the right edge`);
+  assert.ok((saved.panelY ?? 0) <= view.innerHeight, `y ${saved.panelY} is past the bottom edge`);
+  const panelEl = must($<HTMLElement>('.panel'), 'panel missing');
+  assert.equal(panelEl.style.left, `${saved.panelX}px`);
+});
+
 test('a header button is a button, not a drag handle', async () => {
   const { $, doc, stores } = await open();
   const view = doc.defaultView;
