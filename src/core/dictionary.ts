@@ -17,6 +17,7 @@
  */
 
 import type { FieldDef } from '../types.ts';
+import type { PageMode } from './pagemode.ts';
 
 export const DICTIONARY: FieldDef[] = [
   {
@@ -201,6 +202,10 @@ export const DICTIONARY: FieldDef[] = [
     labels: ['Responsible', 'Responsible Group', 'Responsibility'],
     patterns: [/responsib/i],
     options: [],
+    // TDX defaults this correctly on the update form, and a wrong write
+    // reassigns a real person's queue and emails them. Resolved and reported,
+    // never written — the same guard affiliation carries, for the same reason.
+    neverWrite: true,
   },
   {
     key: 'source',
@@ -266,10 +271,47 @@ export const DICTIONARY: FieldDef[] = [
     patterns: [/service\s*offering/i],
     options: [],
   },
+  {
+    key: 'newStatus',
+    label: 'New Status',
+    control: 'select',
+    fieldTypes: [],
+    fieldIds: [],
+    labels: ['New Status'],
+    patterns: [/^NewStatusId$/i, /new\s*status/i],
+    options: ['New', 'In Process', 'On Hold', 'Resolved', 'Closed', 'Cancelled'],
+    fixedValue: 'Resolved',
+  },
+  {
+    key: 'comments',
+    label: 'Comments',
+    control: 'richtext',
+    fieldTypes: [],
+    fieldIds: [],
+    labels: ['Comments'],
+    patterns: [/^Comments[_.]Content$/i],
+    options: [],
+  },
+  {
+    key: 'commentsPrivate',
+    label: 'Make comments private',
+    control: 'checkbox',
+    fieldTypes: [],
+    fieldIds: [],
+    labels: ['Make comments private'],
+    patterns: [/^CommentsIsPrivate$/i, /comments?\s*is\s*private/i],
+    options: [],
+  },
 ];
 
-/** The five fields the extension writes, in the order it writes them. */
-export const FILL_SET: string[] = ['ubitName', 'briefSummary', 'description', 'source', 'service', 'serviceOffering'];
+/** The fields the extension writes on each form, in the order it writes them. */
+export const FILL_SETS: Record<PageMode, string[]> = {
+  create: ['ubitName', 'briefSummary', 'description', 'source', 'service', 'serviceOffering'],
+  // commentsPrivate before comments on purpose: unchecking is what makes the
+  // comment client-visible, so a run that dies halfway leaves an unchecked box
+  // and no comment — never a private comment that looks sent.
+  resolve: ['newStatus', 'commentsPrivate', 'comments'],
+};
 
 // ponytail: linear find over ~23 entries — a Map index isn't worth it at this size.
 export function byKey(key: string): FieldDef | undefined {

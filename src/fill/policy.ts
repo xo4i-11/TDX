@@ -6,7 +6,7 @@
  * apart is what makes the engine testable against forms it has never seen.
  */
 
-import { DICTIONARY, FILL_SET, byKey } from '../core/dictionary.ts';
+import { DICTIONARY, FILL_SETS, byKey } from '../core/dictionary.ts';
 import { applyValue, currentValue, type ApplyContext } from '../adapters/index.ts';
 import { renderTemplate } from '../data/templates.ts';
 import type {
@@ -46,7 +46,7 @@ export function planFill({
     : { summary: '', descriptionHtml: '', unknown: [] };
   const rows: FillRow[] = [];
 
-  for (const fieldKey of FILL_SET) {
+  for (const fieldKey of FILL_SETS.create) {
     const def = byKey(fieldKey);
     // FILL_SET is authored against DICTIONARY — both live in
     // src/core/dictionary.ts, whose tests pin them to each other — so this
@@ -86,7 +86,7 @@ export function planFill({
   // Affiliation lands here too — it is outside the fill set, so it can only
   // ever reach a report row, never a write row.
   for (const def of DICTIONARY) {
-    if (FILL_SET.includes(def.key)) continue;
+    if (FILL_SETS.create.includes(def.key)) continue;
     const match = resolution.byField.get(def.key);
     if (!match) continue;
     rows.push({ ...report(def, 'skipped', OUT_OF_SCOPE), control: match.control, confidence: match.confidence });

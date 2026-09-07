@@ -1,10 +1,10 @@
 // Tests that resolve() maps harvested controls onto canonical fields correctly, in tier order, on both the real form and one with TDX's markers stripped.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture, loadUnknownFormFixture } from './helpers.ts';
+import { loadFixture, loadUnknownFormFixture, loadUpdateFixture } from './helpers.ts';
 import { harvest } from '../src/core/harvest.ts';
 import { resolve, LOW_CONFIDENCE } from '../src/core/resolve.ts';
-import { FILL_SET } from '../src/core/dictionary.ts';
+import { FILL_SETS, byKey } from '../src/core/dictionary.ts';
 import type { Resolution } from '../src/types.ts';
 
 function resolveDoc(doc: Document, learned?: Record<string, string>): Resolution {
@@ -13,7 +13,7 @@ function resolveDoc(doc: Document, learned?: Record<string, string>): Resolution
 
 test('every fill-set field resolves on the real form, via TDX markers', () => {
   const { byField } = resolveDoc(loadFixture());
-  for (const key of FILL_SET) {
+  for (const key of FILL_SETS.create) {
     const match = byField.get(key);
     assert.ok(match, `${key} did not resolve`);
     assert.ok(match.tier === 1 || match.tier === 2, `${key} expected tier 1 or 2, got ${match.tier}`);
@@ -33,7 +33,7 @@ test('fill-set fields land on the right controls', () => {
 test('ACCEPTANCE: an unseen form resolves the fill set from labels and options alone', () => {
   // No data-fieldtype, no data-fieldid. Only labels, option sets, names, ids.
   const { byField } = resolveDoc(loadUnknownFormFixture());
-  for (const key of FILL_SET) {
+  for (const key of FILL_SETS.create) {
     const match = byField.get(key);
     assert.ok(match, `${key} did not resolve without TDX markers`);
     assert.equal(match.tier, 3);
@@ -100,4 +100,25 @@ test('resolution is deterministic', () => {
   const a = [...resolveDoc(loadFixture()).byField.entries()].map(([k, m]) => `${k}:${m.control.key}:${m.tier}`);
   const b = [...resolveDoc(loadFixture()).byField.entries()].map(([k, m]) => `${k}:${m.control.key}:${m.tier}`);
   assert.deepEqual(a, b);
+});
+
+// These three carry no data-fieldtype and no data-fieldid — they are core TDX
+// fields, not custom attributes — so tier 3 is the only thing that can find
+// them. That is exactly what tier 3 is for.
+test('the update form resolves its core fields at tier 3', () => {
+  const { byField } = resolveDoc(loadUpdateFixture());
+  assert.equal(byField.get('newStatus')?.control.id, 'NewStatusId');
+  assert.equal(byField.get('comments')?.control.id, 'Comments_Content');
+  assert.equal(byField.get('commentsPrivate')?.control.id, 'CommentsIsPrivate');
+  assert.equal(byField.get('newStatus')?.tier, 3);
+});
+
+// Falsifiability: if neverWrite stopped being data and became a branch someone
+// could drop, this would still resolve but the guard would be gone.
+test('responsible resolves from its TDX marker and is never written', () => {
+  const { byField } = resolveDoc(loadUpdateFixture());
+  const match = byField.get('responsible');
+  assert.ok(match, 'responsible did not resolve');
+  assert.equal(match.tier, 1);
+  assert.equal(byKey('responsible')?.neverWrite, true);
 });
