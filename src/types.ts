@@ -134,8 +134,6 @@ export interface Settings {
   threshold: number;
   overwrite: boolean;
   collapsed?: boolean;
-  /** The captured "Ticket Resolved" body, its red placeholder already rewritten to {{steps}}. */
-  resolvedCommentHtml?: string | null;
 }
 
 /** One line in the results panel: what happened to one field. */

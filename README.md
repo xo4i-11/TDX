@@ -4,6 +4,8 @@ A Chrome extension that fills TeamDynamix ticket forms at
 `ubuffalo.teamdynamix.com` for walk-up tickets. It resolves fields by meaning
 rather than by selector, so it works on TDX forms it has never seen.
 
+The requestor is read off the page at load — no pasting, no buttons.
+
 Everything happens in the browser. The extension makes no network requests of
 any kind — no telemetry, no analytics, no hosted models, no CDN assets — and
 that is enforced by a test.
@@ -31,26 +33,22 @@ deliberately skipped so you remember to set it.
 
 ### Resolving a ticket
 
-On a ticket **update** form the panel switches to resolve mode and writes three
-fields: New Status (`Resolved`), the private-comment checkbox (unchecked, so the
-client can read the reply), and Comments.
+On a ticket **update** form the panel switches to resolve mode. At load it
+clicks TDX's own **Templates > ALL > Ticket Resolved**, waits for the editor to
+receive it, and writes New Status (`Resolved`) and the private-comment checkbox
+(unchecked, so the client can read the reply).
+
+Pick the job from the template list and its steps drop into the **What you
+tried** box; edit them or type your own, click away, and the comment is
+written — the red placeholder replaced by your steps, still red. Switching job
+rewrites the comment; text you typed yourself is never overwritten.
 
 **Responsible is never written.** TDX defaults it to the right account, and a
 wrong write reassigns a real person's queue and emails them. It shows in the
-results as resolved-and-reported, so you can see it before saving.
+results as resolved-and-reported.
 
-The comment body comes from TDX's own template, captured once per instance:
-open **Templates → ALL → Ticket Resolved** on a real update form, then click
-**Capture resolved template** in the panel. The panel finds the red placeholder
-text, shows you which block it will replace — everything else in that block is
-dropped — and on confirmation stores the body with `{{steps}}` in its place.
-
-Every later resolve substitutes your troubleshooting steps into that spot, one
-line per bullet. Picking a template pre-fills the steps box with that job's
-canned steps; edit them freely before filling. Clear the capture in Settings
-when UBIT edits the template, then capture again.
-
-
+A comment box that already has content is left alone, so a part-written comment
+is never loaded over.
 
 ## How resolution works
 

@@ -30,6 +30,23 @@ const open = async (doc: Document = loadFixture()): Promise<Opened> => {
   return { doc, stores, $: <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel) };
 };
 
+// The Requestor card TDX renders beside the form, as markup, not as a paste.
+const CARD = `<div class="card"><h3>Requestor</h3>
+  <a href="/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310">Anh Duy Nghiem</a>
+  <a href="mailto:duynghie@buffalo.edu">duynghie@buffalo.edu</a>
+  <div>Student Assistant - ITCX Tech Squad</div>
+  <div>University at Buffalo</div>
+  <div>50583450 - duynghie</div></div>`;
+
+/** The create form with the requestor card TDX renders beside it — what the panel reads at mount. */
+function fixtureWithRequestor(): Document {
+  const doc = loadFixture();
+  const card = doc.createElement('div');
+  card.innerHTML = CARD;
+  doc.body.append(card);
+  return doc;
+}
+
 function must<T extends Element>(el: T | null, message: string): T {
   assert.ok(el, message);
   return el;
@@ -57,18 +74,13 @@ test('mounts into a shadow root so TDX stylesheets cannot reach it', async () =>
 });
 
 test('destroy removes the host, the keydown listener, and the highlight outlines it left behind', async () => {
-  const doc = loadFixture();
+  const doc = fixtureWithRequestor();
   const view = doc.defaultView;
   assert.ok(view);
   const stores = createStores(createMemoryArea());
   const panel = await createPanel({ doc, stores, bridge });
   const $ = <T extends Element = Element>(sel: string) => panel.shadow.querySelector<T>(sel);
 
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement);
-  paste.value = BLOCK;
-  must($('button[data-parse]'), 'parse button missing').dispatchEvent(new view.Event('click', { bubbles: true }));
-  await settle();
   must($('button[data-fill]'), 'fill button missing').dispatchEvent(new view.Event('click', { bubbles: true }));
   await settle();
   assert.ok(doc.querySelectorAll('.tdxa-touched').length > 0, 'fill should have highlighted at least one control');
@@ -96,82 +108,14 @@ test('contains the controls in the specified order', async () => {
   assert.deepEqual(order, ['requestor', 'template', 'service', 'fill', 'results']);
 });
 
-test('parsing a pasted block shows the fields and flags nothing missing', async () => {
-  const { $, doc } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement, 'paste textarea missing');
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
-  const parsed = must($('.parsed'), 'parsed list must render after a parse').textContent ?? '';
-  assert.match(parsed, /Anh Duy Nghiem/);
-  assert.match(parsed, /duynghie/);
-  assert.match(parsed, /b067308b-2198-ef11-9c36-f06ebc4e4310/);
-  // Scoped to the requestor section: the panel's persistent (but hidden)
-  // top-level error node also carries the shared `.missing` class, so a
-  // bare `$('.missing')` would find that instead of proving the parse result
-  // itself flagged nothing.
-  assert.equal($('[data-section="requestor"] .missing'), null, 'nothing should be flagged missing for a complete block');
 
-  // The Parse click re-renders the whole panel body (replaceChildren); the
-  // pasted text must survive that, not just the parsed result it produced.
-  const pasteAfter = $('textarea[name="paste"]');
-  assert.ok(pasteAfter instanceof view.HTMLTextAreaElement, 'paste textarea missing after render');
-  assert.equal(pasteAfter.value, BLOCK, 'the pasted block must still be visible after Parse re-renders the panel');
-});
 
-test('a partial paste flags what is missing rather than silently continuing', async () => {
-  const { $, doc } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement, 'paste textarea missing');
-  paste.value = 'Anh Duy Nghiem\nduynghie@buffalo.edu';
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
-  assert.ok($('.missing'), 'missing fields must be flagged');
-  // The parser's own warning text is the "see why without a debugger" signal
-  // this task exists to surface — a bare "missing" dd doesn't say TDX submits
-  // a GUID and this paste didn't carry one. Rendered alongside .parsed, not
-  // necessarily inside it, so check the whole requestor section.
-  const requestorSection = must($('[data-section="requestor"]'), 'requestor section missing');
-  assert.match(requestorSection.textContent ?? '', /No person GUID found/);
-});
 
-test('reading from the page recovers the GUID and name TDX prefilled', async () => {
-  const { $, doc } = await open();
-  click(must($('button[data-read-page]'), 'read-from-page button missing'), doc);
-  await settle();
-  const parsed = must($('.parsed'), 'parsed list must render after reading the page').textContent ?? '';
-  assert.match(parsed, /b067308b-2198-ef11-9c36-f06ebc4e4310/);
-});
-
-test('the identifiers are monospace and the prose is not', async () => {
-  const { $, doc } = await open();
-  const view = doc.defaultView;
-  assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement, 'paste textarea missing');
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
-  const parsedList = must($('.parsed'), 'parsed list missing');
-  const guid = [...parsedList.querySelectorAll('dd')].find((d) => (d.textContent ?? '').includes('b067308b'));
-  assert.ok(guid, 'GUID row must be present');
-  assert.ok(guid.classList.contains('ident'), 'the GUID must be monospace');
-});
 
 test('filling writes the five fields and renders one result row per outcome', async () => {
-  const { $, doc } = await open();
+  const { $, doc } = await open(fixtureWithRequestor());
   const view = doc.defaultView;
   assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement, 'paste textarea missing');
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
 
   const template = $('select[name="template"]');
   assert.ok(template instanceof view.HTMLSelectElement, 'template select missing');
@@ -191,18 +135,13 @@ test('filling writes the five fields and renders one result row per outcome', as
 });
 
 test('the panel never submits the form', async () => {
-  const { $, doc } = await open();
+  const { $, doc } = await open(fixtureWithRequestor());
   const view = doc.defaultView;
   assert.ok(view);
   const form = doc.querySelector('form');
   assert.ok(form);
   form.submit = () => { throw new Error('submit() called'); };
   form.addEventListener('submit', () => { throw new Error('submit dispatched'); });
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement, 'paste textarea missing');
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
   click(must($('button[data-fill]'), 'fill button missing'), doc);
   await settle();
 });
@@ -242,7 +181,7 @@ test('with no examples saved, the service row says template default and suggests
 });
 
 test('toggling diagnostics renders the copy-pasteable dump', async () => {
-  const { $, doc } = await open();
+  const { $, doc } = await open(fixtureWithRequestor());
   click(must($('button[data-diagnostics]'), 'diagnostics button missing'), doc);
   await settle();
   const pre = must($('pre.diagnostics'), 'diagnostics dump must render');
@@ -271,7 +210,7 @@ test('pressing Escape collapses the panel and remembers it, same as the button',
 });
 
 test('a rejected store write surfaces as visible panel text instead of vanishing silently', async () => {
-  const doc = loadFixture();
+  const doc = fixtureWithRequestor();
   const view = doc.defaultView;
   assert.ok(view);
   const stores = createStores(createMemoryArea());
@@ -400,7 +339,7 @@ test('the overwrite checkbox round-trips through settings and survives a re-rend
 });
 
 test('opening Settings renders the real settings view, not an empty panel', async () => {
-  const { $, doc } = await open();
+  const { $, doc } = await open(fixtureWithRequestor());
   click(must($('button[data-settings]'), 'settings button missing'), doc);
   await settle();
   assert.ok($('input[name="threshold"]'), 'threshold input must render');
@@ -411,11 +350,6 @@ test('correcting a mapping in the results panel is learned and immediately re-re
   const { $, doc, stores } = await open();
   const view = doc.defaultView;
   assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement);
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
   click(must($('button[data-fill]'), 'fill button missing'), doc);
   await settle();
 
@@ -445,14 +379,9 @@ test('correcting a mapping in the results panel is learned and immediately re-re
 // for a value that is not on the form — the one silent failure the read-back
 // discipline cannot see.
 test('a fill after the form was re-rendered writes into the live control, not the detached one it was holding', async () => {
-  const { $, doc } = await open();
+  const { $, doc } = await open(fixtureWithRequestor());
   const view = doc.defaultView;
   assert.ok(view);
-  const paste = $('textarea[name="paste"]');
-  assert.ok(paste instanceof view.HTMLTextAreaElement);
-  paste.value = BLOCK;
-  click(must($('button[data-parse]'), 'parse button missing'), doc);
-  await settle();
 
   // Exactly what a partial postback does: same markup, brand new element.
   const before = doc.getElementById('attribute2445');
@@ -482,19 +411,9 @@ test('a mount that fails partway leaves no orphan host element on the page', asy
   assert.equal(doc.getElementById('tdx-autofill-host'), null, 'a failed mount must not leave a host behind');
 });
 
-// The Requestor card TDX renders beside the form, as markup, not as a paste.
-const CARD = `<div class="card"><h3>Requestor</h3>
-  <a href="/TDNext/Apps/People/PersonDet.aspx?U=b067308b-2198-ef11-9c36-f06ebc4e4310">Anh Duy Nghiem</a>
-  <a href="mailto:duynghie@buffalo.edu">duynghie@buffalo.edu</a>
-  <div>Student Assistant - ITCX Tech Squad</div>
-  <div>University at Buffalo</div>
-  <div>50583450 - duynghie</div></div>`;
 
 test('the UBITName is read off the requestor card at mount, with no paste and no click', async () => {
-  const doc = loadFixture();
-  const card = doc.createElement('div');
-  card.innerHTML = CARD;
-  doc.body.append(card);
+  const doc = fixtureWithRequestor();
 
   const { $ } = await open(doc);
   const parsed = must($('.parsed'), 'parsed list must render from the detected requestor').textContent ?? '';
@@ -504,10 +423,7 @@ test('the UBITName is read off the requestor card at mount, with no paste and no
 });
 
 test('a detected UBITName is filled instead of the "Unknown" placeholder', async () => {
-  const doc = loadFixture();
-  const card = doc.createElement('div');
-  card.innerHTML = CARD;
-  doc.body.append(card);
+  const doc = fixtureWithRequestor();
 
   const { $ } = await open(doc);
   click(must($('button[data-fill]'), 'fill button missing'), doc);
@@ -522,7 +438,7 @@ const RESOLVED_CAPTURE = '<p>Your ticket has been resolved.</p><p><span style="c
 test('the panel renders resolve sections on the update form', async () => {
   const { $ } = await open(loadUpdateFixture());
   assert.ok($('[data-section="steps"]'), 'steps section missing');
-  assert.ok($('button[data-capture-resolved]'), 'capture button missing');
+  assert.ok($('[data-section="resolved"]'), 'resolved-template status missing');
   assert.equal($('[data-section="service"]'), null, 'the service section belongs to the create form only');
 });
 
@@ -539,31 +455,7 @@ function loadEditor(doc: Document, html: string): void {
   textarea.value = html;
 }
 
-test('capture rewrites the red block to a {{steps}} template and stores it', async () => {
-  const doc = loadUpdateFixture();
-  loadEditor(doc, RESOLVED_CAPTURE);
 
-  const { $, stores } = await open(doc);
-  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
-  await settle();
-  click(must($('button[data-confirm-capture]'), 'confirm button missing'), doc);
-  await settle();
-
-  const saved = (await stores.settings.get()).resolvedCommentHtml ?? '';
-  assert.match(saved, /\{\{steps\}\}/);
-  assert.equal(saved.includes('what we tried'), false);
-});
-
-// Falsifiability: without the guard an empty editor stores an empty template,
-// and every later fill writes a blank client-visible comment.
-test('capture refuses an empty editor instead of storing nothing', async () => {
-  const doc = loadUpdateFixture();
-  const { $, stores } = await open(doc);
-  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
-  await settle();
-  assert.equal((await stores.settings.get()).resolvedCommentHtml ?? null, null);
-  assert.match(must($('[data-error]'), 'error line missing').textContent ?? '', /empty/i);
-});
 
 test('choosing a template pre-fills the steps box', async () => {
   const doc = loadUpdateFixture();
@@ -576,34 +468,6 @@ test('choosing a template pre-fills the steps box', async () => {
   assert.match(steps.value, /Downloaded the eduroam certificate/);
 });
 
-// Falsifiability: this sets the box's value WITHOUT dispatching 'input', the
-// way a paste-and-click or an IME commit can. If Fill trusted only the state
-// the input listener accumulates, steps would arrive empty and the comment
-// row would come back needs-confirm — which is the bug this pins.
-test('Fill reads the steps box live, not just what the input listener caught', async () => {
-  const doc = loadUpdateFixture();
-  loadEditor(doc, RESOLVED_CAPTURE);
-  const { $, stores } = await open(doc);
-  await stores.settings.patch({ resolvedCommentHtml: '<p>Hello.</p><p>{{steps}}</p>' });
-
-  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
-  await settle();
-  click(must($('button[data-confirm-capture]'), 'confirm button missing'), doc);
-  await settle();
-
-  // A fresh resolve ticket has an empty comment box: the TDX template was only
-  // loaded so it could be captured. Left full, `comments` preserves — by design.
-  loadEditor(doc, '');
-
-  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
-  steps.value = 'Restarted the device\nVerified the connection';
-
-  click(must($('button[data-fill]'), 'fill button missing'), doc);
-  await settle();
-
-  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
-  assert.match(editor?.innerHTML ?? '', /<li>Restarted the device<\/li>/);
-});
 
 // Falsifiability: without the guard, selecting a template — Blank especially,
 // which has no canned steps — overwrites the box and destroys typed work.

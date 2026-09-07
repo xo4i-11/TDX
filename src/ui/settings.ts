@@ -71,27 +71,6 @@ async function buildSections(
   thresholdSection.append(threshold, note(doc, 'Below this similarity, no service is suggested and the template default is used instead.'));
   sections.push(thresholdSection);
 
-  // Captured resolved template: one string, one per TDX instance. Shown here
-  // only so it can be thrown away when UBIT edits the Ticket Resolved template.
-  const resolvedSection = section(doc, 'Captured resolved template');
-  if (settings.resolvedCommentHtml) {
-    const clear = doc.createElement('button');
-    clear.type = 'button';
-    clear.textContent = 'Clear';
-    clear.setAttribute('data-clear-resolved', '');
-    clear.addEventListener('click', guarded(async () => {
-      await stores.settings.patch({ resolvedCommentHtml: null });
-      onChange();
-      await rerender();
-    }));
-    resolvedSection.append(
-      note(doc, 'Captured. Clear it after UBIT edits the Ticket Resolved template, then capture again from a ticket update form.'),
-      clear,
-    );
-  } else {
-    resolvedSection.append(note(doc, 'Nothing captured yet. Capture it from a ticket update form.'));
-  }
-  sections.push(resolvedSection);
 
   // Templates
   const templateSection = section(doc, 'Templates');

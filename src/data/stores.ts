@@ -10,7 +10,7 @@
 
 import type { Example, LearnedStore, Settings, SettingsStore, Stores, Template } from '../types.ts';
 
-export const DEFAULT_SETTINGS: Settings = { threshold: 0.35, overwrite: false, resolvedCommentHtml: null };
+export const DEFAULT_SETTINGS: Settings = { threshold: 0.35, overwrite: false };
 
 const KEYS = {
   templates: 'tdxa.templates',

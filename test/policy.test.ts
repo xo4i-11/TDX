@@ -268,13 +268,13 @@ test('the private checkbox is unchecked even with overwrite off', async () => {
   assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
 });
 
-test('no captured template blocks only the comment row', async () => {
+test('no loaded template blocks only the comment row', async () => {
   const { doc, resolution } = resolveSetup();
   const rows = await runFill({
     resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(), steps: 'Rebooted',
   }, { bridge });
   assert.equal(row(rows, 'comments')?.status, 'needs-confirm');
-  assert.match(row(rows, 'comments')?.detail ?? '', /capture the resolved template/i);
+  assert.match(row(rows, 'comments')?.detail ?? '', /has not loaded/i);
   assert.equal(row(rows, 'newStatus')?.status, 'filled');
   assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
 });

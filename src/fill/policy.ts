@@ -193,7 +193,7 @@ function valueFor(
         return {
           kind: 'blocked',
           status: 'needs-confirm',
-          detail: 'capture the resolved template first: pick Templates > ALL > Ticket Resolved on the form, then Capture',
+          detail: 'the Ticket Resolved template has not loaded from the page yet',
         };
       }
       const list = stepsToHtml(steps);

@@ -80,7 +80,5 @@ pre.diagnostics {
 }
 .note { color: #a29a90; font-size: 11.5px; margin: 0; }
 
-.preview { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
-.preview label { display: flex; gap: 6px; align-items: baseline; font-size: 12px; }
 textarea[name="steps"] { width: 100%; min-height: 72px; }
 `;

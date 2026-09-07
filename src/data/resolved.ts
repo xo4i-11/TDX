@@ -8,17 +8,6 @@
 
 const BLOCK_TAGS = new Set(['P', 'DIV', 'LI', 'TD', 'BLOCKQUOTE', 'SECTION']);
 
-/** One red run found in a captured body, with the block that would be replaced. */
-export interface RedBlock {
-  index: number;
-  /** The red run's own text, for the preview. */
-  text: string;
-  /** The whole block that would be replaced, so the preview can show what is lost. */
-  html: string;
-  /** The colour declaration that identified it, reused so the substituted steps read as red too. */
-  color: string;
-}
-
 /**
  * Whether a rich-text body holds nothing a person would call content.
  *
@@ -34,24 +23,16 @@ export function isBlankHtml(html: string): boolean {
     .trim() === ''; // the second alternation is a literal non-breaking space
 }
 
-export function findRedBlocks(html: string, doc: Document): RedBlock[] {
-  const { blocks } = analyse(html, doc);
-  return blocks.map(({ el, run, color }, index) => ({
-    index,
-    text: (run.textContent ?? '').trim(),
-    html: el.outerHTML,
-    color,
-  }));
-}
-
 /**
- * Replaces the chosen red run's whole block with a bare `{{steps}}`
- * placeholder. The block, not the run: substituting a `<ul>` into the middle of
- * a `<p>` produces markup CKEditor silently rearranges.
+ * Replaces the first red run's whole block with a bare `{{steps}}` placeholder,
+ * or returns the html untouched when there is no red in it.
+ *
+ * The block, not the run: substituting a `<ul>` into the middle of a `<p>`
+ * produces markup CKEditor silently rearranges.
  */
-export function toStepsTemplate(html: string, doc: Document, index: number): string {
+export function toStepsTemplate(html: string, doc: Document): string {
   const { root, blocks } = analyse(html, doc);
-  const target = blocks[index];
+  const target = blocks[0];
   if (!target) return html;
 
   // A div, not a p: the steps substitute in as a <ul>, and a list inside a

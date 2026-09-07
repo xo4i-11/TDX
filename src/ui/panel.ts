@@ -20,7 +20,7 @@ import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import { readRichTextHtml } from '../adapters/richtext.ts';
-import { findRedBlocks, isBlankHtml, toStepsTemplate, type RedBlock } from '../data/resolved.ts';
+import { isBlankHtml, toStepsTemplate } from '../data/resolved.ts';
 import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
@@ -63,8 +63,6 @@ interface PanelState {
   /** Lives here and only here. Never persisted — see the file banner. */
   requestor: RequestorFields | null;
   warnings: string[];
-  /** The raw paste textarea content, kept here so a re-render (any button click) doesn't wipe it. */
-  pasteText: string;
   templateId: string;
   confirmedService: Captured | null;
   /** The Service Offering under confirmedService, captured with it. */
@@ -72,8 +70,6 @@ interface PanelState {
   rows: FillRow[];
   /** Resolve mode: the troubleshooting steps box, kept here so a re-render does not wipe it. */
   steps: string;
-  /** Resolve mode: a capture awaiting confirmation. Never stored until the technician confirms. */
-  capture: { html: string; blocks: RedBlock[]; chosen: number } | null;
   /**
    * Resolve mode: the body TDX's own template menu just loaded, red placeholder
    * still in it. Preferred over the stored capture — it is what UBIT publishes
@@ -90,13 +86,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   const state: PanelState = {
     requestor: null,
     warnings: [],
-    pasteText: '',
     templateId: 'blank',
     confirmedService: null,
     confirmedOffering: null,
     rows: [],
     steps: '',
-    capture: null,
     loadedTemplateHtml: null,
     autoTemplate: '',
     showDiagnostics: false,
@@ -238,7 +232,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     }
 
     if (mode === 'resolve') {
-      wrap.append(requestorSection(), await templateSection(), stepsSection(), await resolvedSection(), fillSection(current), resultsSection());
+      wrap.append(requestorSection(), await templateSection(), stepsSection(), resolvedSection(), fillSection(current), resultsSection());
     } else {
       wrap.append(requestorSection(), await templateSection(), await serviceSection(), fillSection(current), resultsSection());
     }
@@ -254,39 +248,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   function requestorSection(): HTMLElement {
     const el = sectionEl('requestor', 'Requestor');
-
-    const paste = document.createElement('textarea');
-    paste.name = 'paste';
-    paste.setAttribute('aria-label', 'Paste the requestor block');
-    paste.placeholder = 'Paste the requestor block here';
-    // Every render rebuilds this element from scratch (replaceChildren), so
-    // without restoring the value here a click on any *other* button in the
-    // panel would silently wipe whatever the technician had pasted.
-    paste.value = state.pasteText;
-    paste.addEventListener('input', () => { state.pasteText = paste.value; });
-
-    const row = document.createElement('div');
-    row.className = 'row';
-    const parse = button('Parse', () => {
-      // Covers a programmatic value change with no 'input' event too, not
-      // just the common typing/pasting case the listener above already keeps live.
-      state.pasteText = paste.value;
-      const { fields, warnings } = parseRequestor(paste.value);
-      state.requestor = fields;
-      state.warnings = warnings;
-      return render();
-    });
-    parse.setAttribute('data-parse', '');
-
-    const readPage = button('Read from page', () => {
-      state.requestor = { ...EMPTY_REQUESTOR, ...(state.requestor ?? {}), ...readRequestorFromPage(document, resolution) };
-      state.warnings = missingWarnings(state.requestor);
-      return render();
-    });
-    readPage.setAttribute('data-read-page', '');
-    row.append(parse, readPage);
-
-    el.append(paste, row);
 
     const requestor = state.requestor;
     if (requestor) {
@@ -450,92 +411,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return el;
   }
 
-  async function resolvedSection(): Promise<HTMLElement> {
+  /** Says what the automatic template load did, so a silent miss is impossible. */
+  function resolvedSection(): HTMLElement {
     const el = sectionEl('resolved', 'Resolved template');
-    const current = await stores.settings.get();
-
-    if (state.autoTemplate) el.append(noteEl(state.autoTemplate));
-    el.append(noteEl(current.resolvedCommentHtml
-      ? 'Captured, as a fallback for when the menu load fails.'
-      : 'Nothing captured. The template is loaded from the page automatically; capture one only as a fallback.'));
-
-    const capture = button('Capture resolved template', () => {
-      const control = resolution.byField.get('comments')?.control;
-      const html = control ? readRichTextHtml(control) : '';
-      if (!html) {
-        setError('Nothing to capture: the comment editor is empty. Pick Templates > ALL > Ticket Resolved on the form first.');
-        return render();
-      }
-      const blocks = findRedBlocks(html, document);
-      if (!blocks.length) {
-        setError('Found no red placeholder text in the comment. Check the template loaded before capturing.');
-        return render();
-      }
-      state.capture = { html, blocks, chosen: 0 };
-      return render();
-    });
-    capture.setAttribute('data-capture-resolved', '');
-    el.append(capture);
-
-    if (state.capture) el.append(capturePreview(state.capture));
+    el.append(noteEl(state.autoTemplate || 'Loading Templates > ALL > Ticket Resolved...'));
     return el;
-  }
-
-  /** Shows which block will be replaced before anything is stored — the check the red heuristic needs. */
-  function capturePreview(capture: NonNullable<PanelState['capture']>): HTMLElement {
-    const wrap = document.createElement('div');
-    wrap.className = 'preview';
-    wrap.append(noteEl(capture.blocks.length > 1
-      ? 'Pick the block your steps replace. Everything else in that block is dropped.'
-      : 'This block will be replaced by your steps. Everything else in it is dropped.'));
-
-    for (const block of capture.blocks) {
-      const row = document.createElement('label');
-      const radio = document.createElement('input');
-      radio.type = 'radio';
-      radio.name = 'red-block';
-      radio.checked = block.index === capture.chosen;
-      radio.addEventListener('change', () => { capture.chosen = block.index; });
-      const text = document.createElement('span');
-      text.textContent = block.text;
-      row.append(radio, text);
-      wrap.append(row);
-    }
-
-    const confirm = button('Save captured template', async () => {
-      await stores.settings.patch({
-        resolvedCommentHtml: toStepsTemplate(capture.html, document, capture.chosen),
-      });
-      state.capture = null;
-      return render();
-    }, 'primary');
-    confirm.setAttribute('data-confirm-capture', '');
-
-    const cancel = button('Cancel', () => { state.capture = null; return render(); });
-    cancel.setAttribute('data-cancel-capture', '');
-
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.append(confirm, cancel);
-    wrap.append(row);
-    return wrap;
-  }
-
-  /**
-   * The body to write into Comments: what TDX's menu just loaded if the
-   * automatic load worked, otherwise the stored capture. The loaded one wins
-   * because it is what UBIT publishes today; the capture is the fallback for
-   * when the menu is missing or its fetch never lands.
-   */
-  function resolvedBody(current: Settings): string | null {
-    if (state.loadedTemplateHtml) {
-      const blocks = findRedBlocks(state.loadedTemplateHtml, document);
-      // No red in the freshly loaded body means the template changed shape;
-      // fall through to the capture rather than write boilerplate with no
-      // steps in it at all.
-      if (blocks.length) return toStepsTemplate(state.loadedTemplateHtml, document, 0);
-    }
-    return current.resolvedCommentHtml ?? null;
   }
 
   /** One fill, whether the button or the automatic flow asked for it. */
@@ -560,7 +440,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       service,
       serviceOffering,
       steps: state.steps,
-      resolvedCommentHtml: resolvedBody(current),
+      resolvedCommentHtml: state.loadedTemplateHtml
+        ? toStepsTemplate(state.loadedTemplateHtml, document)
+        : null,
       settings,
       now: now(),
     }, {
