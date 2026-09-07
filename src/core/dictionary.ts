@@ -281,6 +281,8 @@ export const DICTIONARY: FieldDef[] = [
     patterns: [/^NewStatusId$/i, /new\s*status/i],
     options: ['New', 'In Process', 'On Hold', 'Resolved', 'Closed', 'Cancelled'],
     fixedValue: 'Resolved',
+    // The existing value is the ticket's current status, not someone's typing.
+    alwaysWrite: true,
   },
   {
     key: 'comments',
@@ -301,6 +303,8 @@ export const DICTIONARY: FieldDef[] = [
     labels: ['Make comments private'],
     patterns: [/^CommentsIsPrivate$/i, /comments?\s*is\s*private/i],
     options: [],
+    // Checked by default, and unchecking it IS the write.
+    alwaysWrite: true,
   },
 ];
 

@@ -1,7 +1,7 @@
 // Tests that shipped templates carry the right verified language and that placeholder substitution escapes correctly.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { renderTemplate, SHIPPED_TEMPLATES, substitute } from '../src/data/templates.ts';
+import { renderTemplate, SHIPPED_TEMPLATES, stepsToHtml, substitute } from '../src/data/templates.ts';
 import type { RequestorFields, Template } from '../src/types.ts';
 
 const REQUESTOR: RequestorFields = {
@@ -122,4 +122,28 @@ test('renderTemplate fills {{time}} as a wall clock reading, not an ISO stamp', 
   const out = renderTemplate(template, REQUESTOR, { now: new Date('2026-09-04T16:30:00Z') });
   assert.match(out.summary, /^\d{1,2}:\d{2}\s?(AM|PM)$/);
   assert.deepEqual(out.unknown, []);
+});
+
+test('stepsToHtml makes one bullet per non-blank line and escapes each', () => {
+  assert.equal(
+    stepsToHtml('Removed the stale profile\n\nRan the CAT tool <b>\n'),
+    '<ul><li>Removed the stale profile</li><li>Ran the CAT tool &lt;b&gt;</li></ul>',
+  );
+});
+
+// Falsifiability: a single line must still be a list, or the fill has two
+// shapes to reason about instead of one.
+test('a single step is still a list', () => {
+  assert.equal(stepsToHtml('Rebooted'), '<ul><li>Rebooted</li></ul>');
+});
+
+test('blank steps make no list at all', () => {
+  assert.equal(stepsToHtml('  \n \n'), '');
+});
+
+test('every walk-up template ships canned steps to pre-fill the resolve box', () => {
+  for (const t of SHIPPED_TEMPLATES) {
+    if (t.id === 'blank') continue;
+    assert.ok((t.steps ?? '').trim(), `${t.name} has no canned steps`);
+  }
 });

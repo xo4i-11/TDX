@@ -66,3 +66,13 @@ test('the dictionary covers every canonical field named in the spec', () => {
   const keys = new Set(DICTIONARY.map((d) => d.key));
   for (const key of required) assert.ok(keys.has(key), `missing canonical field: ${key}`);
 });
+
+// Falsifiability: without alwaysWrite the update form's status ("Waiting for
+// Customer") and its checked private box both count as "already set" and the
+// resolve fill silently preserves them.
+test('the two resolve fields whose current value is form state are alwaysWrite', () => {
+  assert.equal(byKey('newStatus')?.alwaysWrite, true);
+  assert.equal(byKey('commentsPrivate')?.alwaysWrite, true);
+  // Comments is not: a technician may have typed in it, and that text is theirs.
+  assert.notEqual(byKey('comments')?.alwaysWrite, true);
+});

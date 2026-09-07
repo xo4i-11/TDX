@@ -8,10 +8,11 @@
 
 import { DICTIONARY, FILL_SETS, byKey } from '../core/dictionary.ts';
 import { applyValue, currentValue, type ApplyContext } from '../adapters/index.ts';
-import { renderTemplate } from '../data/templates.ts';
+import { renderTemplate, stepsToHtml, substitute } from '../data/templates.ts';
 import type {
   Captured, FieldDef, FillRow, FillStatus, RequestorFields, Resolution, Settings, Template,
 } from '../types.ts';
+import type { PageMode } from '../core/pagemode.ts';
 
 const OUT_OF_SCOPE = 'out of fill scope — resolved and reported, never written';
 
@@ -21,6 +22,12 @@ export interface PlanFillArgs {
   template?: Template | null;
   service?: Captured | null;
   serviceOffering?: Captured | null;
+  /** Which form this is. Decides the fill set; defaults to the create form. */
+  mode?: PageMode;
+  /** Resolve mode only: the technician's troubleshooting steps, one per line. */
+  steps?: string;
+  /** Resolve mode only: the captured "Ticket Resolved" body carrying {{steps}}. */
+  resolvedCommentHtml?: string | null;
   settings: Settings;
   now?: Date;
 }
@@ -30,7 +37,7 @@ type Rendered = ReturnType<typeof renderTemplate>;
 
 /** Either a value ready to write, or the reason it can't be written yet. Never both. */
 type ValueOutcome =
-  | { kind: 'value'; value: string | Captured }
+  | { kind: 'value'; value: string | Captured | boolean }
   | { kind: 'blocked'; status: FillStatus; detail: string };
 
 /**
@@ -39,14 +46,15 @@ type ValueOutcome =
  * resolution and settings it's given, touches no DOM, awaits nothing.
  */
 export function planFill({
-  resolution, requestor, template = null, service = null, serviceOffering = null, settings, now = new Date(),
+  resolution, requestor, template = null, service = null, serviceOffering = null,
+  mode = 'create', steps = '', resolvedCommentHtml = null, settings, now = new Date(),
 }: PlanFillArgs): FillRow[] {
   const rendered: Rendered = template
     ? renderTemplate(template, requestor, { now })
     : { summary: '', descriptionHtml: '', unknown: [] };
   const rows: FillRow[] = [];
 
-  for (const fieldKey of FILL_SETS.create) {
+  for (const fieldKey of FILL_SETS[mode]) {
     const def = byKey(fieldKey);
     // FILL_SET is authored against DICTIONARY — both live in
     // src/core/dictionary.ts, whose tests pin them to each other — so this
@@ -59,14 +67,17 @@ export function planFill({
       continue;
     }
 
-    const outcome = valueFor(fieldKey, { rendered, requestor, service, serviceOffering });
+    const outcome = valueFor(fieldKey, { rendered, requestor, service, serviceOffering, steps, resolvedCommentHtml });
     if (outcome.kind === 'blocked') {
       rows.push({ ...report(def, outcome.status, outcome.detail), control: match.control, confidence: match.confidence });
       continue;
     }
 
     const existing = currentValue(match.control);
-    if (existing && !settings.overwrite) {
+    // alwaysWrite fields skip this: their current value is the form's own
+    // state, not typed content. Preserving would leave the private-comment box
+    // checked and the status untouched, which is the whole resolve action.
+    if (existing && !settings.overwrite && !def.alwaysWrite) {
       rows.push({
         ...report(def, 'preserved', `already set to ${JSON.stringify(truncate(existing))}; enable overwrite to replace`),
         control: match.control,
@@ -86,7 +97,7 @@ export function planFill({
   // Affiliation lands here too — it is outside the fill set, so it can only
   // ever reach a report row, never a write row.
   for (const def of DICTIONARY) {
-    if (FILL_SETS.create.includes(def.key)) continue;
+    if (FILL_SETS[mode].includes(def.key)) continue;
     const match = resolution.byField.get(def.key);
     if (!match) continue;
     rows.push({ ...report(def, 'skipped', OUT_OF_SCOPE), control: match.control, confidence: match.confidence });
@@ -143,8 +154,10 @@ export async function runFill(args: PlanFillArgs, ctx: ApplyContext = {}): Promi
 
 function valueFor(
   fieldKey: string,
-  { rendered, requestor, service, serviceOffering }:
-    { rendered: Rendered; requestor: RequestorFields; service: Captured | null; serviceOffering: Captured | null },
+  { rendered, requestor, service, serviceOffering, steps, resolvedCommentHtml }: {
+    rendered: Rendered; requestor: RequestorFields; service: Captured | null;
+    serviceOffering: Captured | null; steps: string; resolvedCommentHtml: string | null;
+  },
 ): ValueOutcome {
   switch (fieldKey) {
     case 'ubitName':
@@ -170,6 +183,31 @@ function valueFor(
       return serviceOffering?.id && serviceOffering.text
         ? { kind: 'value', value: serviceOffering }
         : { kind: 'blocked', status: 'skipped', detail: 'no service offering captured for this template' };
+    case 'newStatus':
+      return { kind: 'value', value: byKey('newStatus')?.fixedValue ?? 'Resolved' };
+    case 'commentsPrivate':
+      // false = unchecked = the client can read it. The whole point of the page.
+      return { kind: 'value', value: false };
+    case 'comments': {
+      if (!resolvedCommentHtml) {
+        return {
+          kind: 'blocked',
+          status: 'needs-confirm',
+          detail: 'capture the resolved template first: pick Templates > ALL > Ticket Resolved on the form, then Capture',
+        };
+      }
+      const list = stepsToHtml(steps);
+      if (!list) {
+        return {
+          kind: 'blocked',
+          status: 'needs-confirm',
+          detail: 'type what you tried before filling — this comment is visible to the client',
+        };
+      }
+      // escape: false because stepsToHtml already escaped each line; escaping
+      // again would show the technician a page full of &lt;li&gt;.
+      return { kind: 'value', value: substitute(resolvedCommentHtml, { steps: list }, { escape: false }).text };
+    }
     default:
       return { kind: 'blocked', status: 'skipped', detail: OUT_OF_SCOPE };
   }

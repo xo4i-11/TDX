@@ -10,7 +10,7 @@
 import type { RequestorFields, Template } from '../types.ts';
 
 /** Placeholder names {{...}} may reference. Anything else is reported as unknown, not substituted. */
-const SUPPORTED = ['name', 'ubitName', 'email', 'personNumber', 'date', 'time'];
+const SUPPORTED = ['name', 'ubitName', 'email', 'personNumber', 'date', 'time', 'steps'];
 const PLACEHOLDER = /\{\{\s*(\w+)\s*\}\}/g;
 
 /** requestorFields, plus the render-time-only `date` and `time` placeholder values. */
@@ -40,6 +40,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'First Time Set Up Eduroam',
     summary: 'First Time Set Up Eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Set up eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    steps: 'Removed the stale eduroam profile from the device\nRan the eduroam CAT configuration tool\nSigned in with UBITName credentials and accepted the certificate prompt\nConfirmed the device reached the internet',
     service: null,
   },
   {
@@ -47,6 +48,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reconfigure Eduroam',
     summary: 'Reconfigure eduroam -- {{ubitName}}',
     descriptionHtml: '<p>Reconfigure eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    steps: 'Forgot the existing eduroam network on the device\nRe-ran the eduroam CAT configuration tool\nConfirmed the device reconnected and reached the internet',
     service: null,
   },
   {
@@ -54,6 +56,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Reset Password',
     summary: 'Reset Password -- {{ubitName}}',
     descriptionHtml: '<p>Reset password for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    steps: 'Verified photo ID in person against the account record\nUser set the new password themselves\nReminded them to update saved credentials on phones, tablets and eduroam profiles\nConfirmed sign-in before they left',
     service: null,
   },
   {
@@ -61,6 +64,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Set Up Duo',
     summary: 'Set Up Duo -- {{ubitName}}',
     descriptionHtml: '<p>Set Up Duo for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    steps: 'Verified identity in person\nInstalled Duo Mobile and enrolled the device\nTested a push notification end to end\nDiscussed a backup method in case the phone is lost',
     service: null,
   },
   {
@@ -68,6 +72,7 @@ export const SHIPPED_TEMPLATES: Template[] = [
     name: 'Assign Duo Bypass Code',
     summary: 'Assign Duo Bypass Code -- {{ubitName}}',
     descriptionHtml: '<p>Assign Duo Bypass Code to {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    steps: 'Verified identity in person\nGenerated a bypass code and gave it to the requestor\nExplained that the code is single-use and expires\nConfirmed they could sign in with it',
     service: null,
   },
 ];
@@ -128,6 +133,18 @@ function formatDate(date: Date): string {
 /** "2:48 PM" — how a technician would write the time on a walk-up note. */
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * One bullet per non-blank line. Always a list, even for a single step — one
+ * shape to reason about at the call site instead of two. Each line is escaped
+ * here, so the result is substituted unescaped: the same split renderTemplate
+ * already makes between the plain-text summary and the HTML description.
+ */
+export function stepsToHtml(steps: string): string {
+  const lines = steps.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (!lines.length) return '';
+  return `<ul>${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join('')}</ul>`;
 }
 
 // ponytail: hand-rolled escape of the five characters that matter in HTML text

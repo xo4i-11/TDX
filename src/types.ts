@@ -57,6 +57,13 @@ export interface FieldDef {
   options: string[];
   fixedValue?: string;
   neverWrite?: boolean;
+  /**
+   * Exempt from the preserve-versus-overwrite rule. For a field whose current
+   * value is the form's own state rather than something a technician typed —
+   * the ticket's existing status, a checkbox's default — "already has a value"
+   * is not a reason to leave it alone, it is the thing being changed.
+   */
+  alwaysWrite?: boolean;
 }
 
 /** A field matched to a control, with how sure we are and which tier decided it. */
@@ -103,6 +110,8 @@ export interface Template {
   service: Captured | null;
   /** The Service Offering under `service` — TDX treats the pair as one choice ("Wi-Fi / Wi-Fi Issue"). */
   serviceOffering?: Captured | null;
+  /** Canned troubleshooting steps, one per line, pre-filled into the resolve panel's box. */
+  steps?: string;
 }
 
 /** One past ticket the technician confirmed, used to suggest a service later. */
@@ -125,6 +134,8 @@ export interface Settings {
   threshold: number;
   overwrite: boolean;
   collapsed?: boolean;
+  /** The captured "Ticket Resolved" body, its red placeholder already rewritten to {{steps}}. */
+  resolvedCommentHtml?: string | null;
 }
 
 /** One line in the results panel: what happened to one field. */
@@ -132,7 +143,7 @@ export interface FillRow {
   fieldKey: string;
   label: string;
   action: 'write' | 'report';
-  value: string | Captured | null;
+  value: string | Captured | boolean | null;
   status: FillStatus | 'pending';
   detail: string;
   control: Control | null;

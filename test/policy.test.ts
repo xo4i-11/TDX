@@ -1,7 +1,7 @@
 // Tests the fill policy: what gets written, what gets preserved, and what gets reported instead of guessed.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadFixture } from './helpers.ts';
+import { loadFixture, loadUpdateFixture } from './helpers.ts';
 import { harvest } from '../src/core/harvest.ts';
 import { resolve } from '../src/core/resolve.ts';
 import { runFill, planFill, executeFill } from '../src/fill/policy.ts';
@@ -228,4 +228,76 @@ test('a control detached by an earlier write is re-found rather than abandoned',
   });
   assert.equal(row(rescued, 'serviceOffering')?.status, 'filled');
   assert.equal(inputEl(doc, 'attribute1932').value, OFFERING.id);
+});
+
+const RESOLVED_BODY = '<p>Your ticket is resolved.</p><p>{{steps}}</p><p>Thanks.</p>';
+
+const resolveSetup = () => {
+  const doc = loadUpdateFixture();
+  return { doc, resolution: resolve(harvest(doc)) };
+};
+
+test('resolve mode sets the status, unchecks private, and fills the comment', async () => {
+  const { doc, resolution } = resolveSetup();
+  const rows = await runFill({
+    resolution,
+    mode: 'resolve',
+    requestor: REQUESTOR,
+    settings: settings(),
+    resolvedCommentHtml: RESOLVED_BODY,
+    steps: 'Removed the stale profile\nRan the CAT tool',
+  }, { bridge });
+
+  const status = selectEl(doc, 'NewStatusId');
+  assert.equal(status.options[status.selectedIndex]?.textContent?.trim(), 'Resolved');
+  assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
+  assert.equal(row(rows, 'comments')?.status, 'filled');
+  assert.match(textareaEl(doc, 'Comments_Content').value, /<li>Removed the stale profile<\/li>/);
+});
+
+// Falsifiability: the private checkbox starts checked. If planFill applied its
+// normal preserve rule to checkboxes, this would come back 'preserved' with
+// overwrite off and the comment would go out invisible to the client.
+test('the private checkbox is unchecked even with overwrite off', async () => {
+  const { doc, resolution } = resolveSetup();
+  assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, true, 'fixture must start checked');
+  await runFill({
+    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings({ overwrite: false }),
+    resolvedCommentHtml: RESOLVED_BODY, steps: 'Rebooted',
+  }, { bridge });
+  assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
+});
+
+test('no captured template blocks only the comment row', async () => {
+  const { doc, resolution } = resolveSetup();
+  const rows = await runFill({
+    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(), steps: 'Rebooted',
+  }, { bridge });
+  assert.equal(row(rows, 'comments')?.status, 'needs-confirm');
+  assert.match(row(rows, 'comments')?.detail ?? '', /capture the resolved template/i);
+  assert.equal(row(rows, 'newStatus')?.status, 'filled');
+  assert.equal(inputEl(doc, 'CommentsIsPrivate').checked, false);
+});
+
+test('empty steps block only the comment row', async () => {
+  const { resolution } = resolveSetup();
+  const rows = await runFill({
+    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(),
+    resolvedCommentHtml: RESOLVED_BODY, steps: '   ',
+  }, { bridge });
+  assert.equal(row(rows, 'comments')?.status, 'needs-confirm');
+  assert.match(row(rows, 'comments')?.detail ?? '', /what you tried/i);
+});
+
+// Falsifiability: responsible resolves on this form, so if neverWrite stopped
+// being honoured it would appear here as a write row.
+test('responsible is reported, never written', async () => {
+  const { resolution } = resolveSetup();
+  const rows = await runFill({
+    resolution, mode: 'resolve', requestor: REQUESTOR, settings: settings(),
+    resolvedCommentHtml: RESOLVED_BODY, steps: 'Rebooted',
+  }, { bridge });
+  const responsible = row(rows, 'responsible');
+  assert.ok(responsible, 'responsible must still be reported');
+  assert.equal(responsible.action, 'report');
 });
