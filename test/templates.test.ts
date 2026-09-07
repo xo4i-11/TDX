@@ -152,11 +152,11 @@ test('every walk-up template ships canned steps to pre-fill the resolve box', ()
 // what lands in a client-visible comment.
 test('the canned steps are the desk wording, not a paraphrase', () => {
   const steps = (id: string): string => SHIPPED_TEMPLATES.find((t) => t.id === id)?.steps ?? '';
-  assert.equal(steps('eduroam'), 'Downloaded the eduroam certificate\nConfirmed the client connected to eduroam');
-  assert.equal(steps('eduroam-reconfigure'), 'Removed the saved eduroam network\nDownloaded the eduroam certificate again\nConfirmed the client connected to eduroam');
-  assert.equal(steps('password-reset'), 'Verified the client ID\nReset the password\nConfirmed the client signed in with the new password');
-  assert.equal(steps('duo'), 'Installed Duo Mobile and completed enrollment\nConfirmed the client signed in with Duo');
-  assert.equal(steps('duo-bypass'), 'Verified the client ID\nIssued a bypass code to the client\nConfirmed the client signed in with Duo');
+  assert.equal(steps('eduroam'), 'Downloaded the eduroam certificate\nConfirmed client connected to eduroam');
+  assert.equal(steps('eduroam-reconfigure'), 'Removed the saved eduroam network\nDownloaded the eduroam certificate again\nConfirmed client connected to eduroam');
+  assert.equal(steps('password-reset'), 'Verified client ID\nReset the password\nConfirmed client signed in with the new password');
+  assert.equal(steps('duo'), 'Installed Duo Mobile and completed enrollment\nConfirmed client signed in with Duo');
+  assert.equal(steps('duo-bypass'), 'Verified client ID\nIssued a bypass code to client\nConfirmed client signed in with Duo');
 });
 
 // Falsifiability: the panel decides "safe to replace" by comparing the box
