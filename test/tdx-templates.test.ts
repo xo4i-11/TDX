@@ -57,3 +57,48 @@ test('applyTemplate reports failure when the editor never changes', async () => 
   assert.equal(result.ok, false);
   assert.match(result.detail, /did not change/);
 });
+
+const MENU = `
+<div class="dropdown">
+  <a class="dropdown-toggle" href="javascript:;" id="lnkShowTemplates" data-toggle="dropdown" aria-expanded="false">Templates</a>
+  <ul class="dropdown-menu multi-level">
+    <li class="dropdown-submenu"><a href="javascript:;" data-toggle="dropdown">ALL</a>
+      <ul class="dropdown-menu">
+        <li><a href="javascript:;" class="js-template" data-template-id="61">Ticket Resolved</a></li>
+      </ul>
+    </li>
+  </ul>
+</div>`;
+
+// Falsifiability: TDX binds its template handler through the open dropdown, so
+// clicking the buried link alone does nothing at all — the reported bug.
+test('applyTemplate opens Templates, then the group, then clicks the entry', async () => {
+  const doc = new JSDOM(MENU).window.document;
+  const link = findTemplateLink(doc, 'Ticket Resolved', 'ALL');
+  assert.ok(link);
+
+  const clicks: string[] = [];
+  for (const a of doc.querySelectorAll('a')) {
+    a.addEventListener('click', () => { clicks.push((a.textContent ?? '').trim()); });
+  }
+
+  let body = '';
+  link.addEventListener('click', () => { body = '<p>Resolved boilerplate</p>'; });
+
+  const result = await applyTemplate(link, () => body, { timeout: 1000 });
+  assert.equal(result.ok, true);
+  assert.deepEqual(clicks, ['Templates', 'ALL', 'Ticket Resolved'], 'menu must be opened outermost-first');
+});
+
+test('applyTemplate marks the menus open, for a page whose dropdown JS never runs', async () => {
+  const doc = new JSDOM(MENU).window.document;
+  const link = findTemplateLink(doc, 'Ticket Resolved', 'ALL');
+  assert.ok(link);
+  let body = '';
+  link.addEventListener('click', () => { body = '<p>x</p>'; });
+
+  await applyTemplate(link, () => body, { timeout: 1000 });
+  assert.ok(doc.querySelector('.dropdown')?.classList.contains('open'), 'the outer dropdown must be marked open');
+  assert.ok(doc.querySelector('li.dropdown-submenu')?.classList.contains('open'), 'the submenu must be marked open');
+  assert.equal(doc.getElementById('lnkShowTemplates')?.getAttribute('aria-expanded'), 'true');
+});

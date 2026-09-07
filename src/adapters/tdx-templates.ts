@@ -13,6 +13,7 @@
  */
 
 import { waitFor } from './wait.ts';
+import { isBlankHtml } from '../data/resolved.ts';
 
 /** How long to give TDX's fetch before calling it a miss. Its own menu, its own network. */
 const LOAD_TIMEOUT_MS = 6000;
@@ -45,6 +46,39 @@ export function findTemplateLink(doc: Document, name: string, group?: string): H
   return inGroup ?? links[0] ?? null;
 }
 
+/**
+ * Opens every dropdown between the page and this link, outermost first, then
+ * leaves them open for the click that follows.
+ *
+ * Clicking the buried link on its own does nothing: TDX's handler runs through
+ * the opened menu, and a submenu that was never opened never gets its entries
+ * wired. The `open` class and aria-expanded are set directly as well as
+ * clicked, so the menu still opens if Bootstrap's own handler is bound
+ * differently than this expects — belt and braces on someone else's widget.
+ */
+function openMenuTo(link: HTMLAnchorElement): void {
+  const view = link.ownerDocument.defaultView;
+  if (!view) return;
+
+  const toggles: HTMLAnchorElement[] = [];
+  let node: Element | null = link.parentElement;
+  while (node) {
+    const container = node.closest('.dropdown, li.dropdown-submenu');
+    if (!container) break;
+    const toggle = container.querySelector<HTMLAnchorElement>(':scope > a[data-toggle="dropdown"], :scope > a.dropdown-toggle');
+    if (toggle) toggles.push(toggle);
+    node = container.parentElement;
+  }
+
+  // Outermost first: a submenu cannot be opened before the menu holding it.
+  for (const toggle of toggles.reverse()) {
+    const container = toggle.closest('.dropdown, li.dropdown-submenu');
+    container?.classList.add('open');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.dispatchEvent(new view.MouseEvent('click', { bubbles: true, cancelable: true, view }));
+  }
+}
+
 export interface ApplyTemplateResult {
   ok: boolean;
   detail: string;
@@ -68,15 +102,17 @@ export async function applyTemplate(
   const view = doc.defaultView;
   if (!view) return { ok: false, detail: 'the template menu has no window to dispatch a click in' };
 
-  // The menu's own anchors are javascript:; links with jQuery handlers, so a
-  // bubbling click is the whole interaction — no need to open the dropdown
-  // first, and opening it would only leave it hanging open over the form.
+  // The menu has to be physically open first: clicking the buried link alone
+  // does nothing, which is how this shipped broken the first time.
+  openMenuTo(link);
   link.dispatchEvent(new view.MouseEvent('click', { bubbles: true, cancelable: true, view }));
 
   try {
     await waitFor(() => {
       const now = readBody();
-      return Boolean(now) && now !== before;
+      // Blank rather than empty: CKEditor seeds a placeholder paragraph, so
+      // "the body changed to <p><br></p>" is not the template arriving.
+      return !isBlankHtml(now) && now !== before;
     }, { timeout, root: doc, win: view });
   } catch {
     return { ok: false, detail: `the comment editor did not change within ${timeout}ms of clicking the template` };

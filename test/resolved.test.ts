@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { findRedBlocks, toStepsTemplate } from '../src/data/resolved.ts';
+import { findRedBlocks, isBlankHtml, toStepsTemplate } from '../src/data/resolved.ts';
 
 const doc = new JSDOM('').window.document;
 
@@ -52,4 +52,19 @@ test('toStepsTemplate rewrites only the chosen block', () => {
 test('a body with no red is left alone and reports nothing', () => {
   assert.deepEqual(findRedBlocks('<p>plain</p>', doc), []);
   assert.equal(toStepsTemplate('<p>plain</p>', doc, 0), '<p>plain</p>');
+});
+
+// Falsifiability: CKEditor never leaves its body truly empty — it seeds a
+// placeholder paragraph. Treating that as content is what made the panel skip
+// its own template load, reporting "the comment box already had content".
+test('an editor holding only CKEditor placeholder markup counts as blank', () => {
+  for (const html of ['', '   ', '<p><br></p>', '<p>&nbsp;</p>', '<p><br /></p>', '<div><p>\n</p></div>']) {
+    assert.equal(isBlankHtml(html), true, `${JSON.stringify(html)} should be blank`);
+  }
+});
+
+test('real content is not blank', () => {
+  for (const html of ['<p>Half a comment</p>', '<p><span style="color:red">x</span></p>', 'text']) {
+    assert.equal(isBlankHtml(html), false, `${JSON.stringify(html)} should not be blank`);
+  }
 });

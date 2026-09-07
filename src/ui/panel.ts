@@ -20,7 +20,7 @@ import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import { readRichTextHtml } from '../adapters/richtext.ts';
-import { findRedBlocks, toStepsTemplate, type RedBlock } from '../data/resolved.ts';
+import { findRedBlocks, isBlankHtml, toStepsTemplate, type RedBlock } from '../data/resolved.ts';
 import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
@@ -580,8 +580,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       return;
     }
 
+    // isBlankHtml, not a truthiness check: CKEditor seeds its body with a
+    // placeholder paragraph, so an untouched comment box is never "".
     const existing = readRichTextHtml(control);
-    if (existing) {
+    if (!isBlankHtml(existing)) {
       state.autoTemplate = 'The comment box already had content, so no template was loaded over it.';
       await fillNow();
       return;

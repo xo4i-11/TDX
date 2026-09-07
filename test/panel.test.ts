@@ -679,3 +679,18 @@ test('a comment box with content is never loaded over', async () => {
   const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
   assert.match(editor?.innerHTML ?? '', /Half a comment I was writing/);
 });
+
+// Falsifiability: CKEditor seeds an untouched body with a placeholder
+// paragraph. A truthiness check reads that as content, and the panel skips its
+// own template load on every fresh ticket — the reported bug.
+test('a CKEditor placeholder paragraph does not count as an occupied comment box', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '<p><br></p>');
+  wireTemplateMenu(doc);
+
+  await open(doc);
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /Your ticket has been resolved/);
+});

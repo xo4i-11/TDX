@@ -17,6 +17,21 @@ export interface RedBlock {
   html: string;
 }
 
+/**
+ * Whether a rich-text body holds nothing a person would call content.
+ *
+ * CKEditor never leaves its body truly empty — it seeds a placeholder
+ * paragraph — so a bare `if (html)` reads an untouched comment box as
+ * occupied, which is exactly how the automatic template load ended up
+ * refusing to run on a fresh ticket.
+ */
+export function isBlankHtml(html: string): boolean {
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;| /gi, ' ')
+    .trim() === ''; // the second alternation is a literal non-breaking space
+}
+
 export function findRedBlocks(html: string, doc: Document): RedBlock[] {
   const { blocks } = analyse(html, doc);
   return blocks.map(({ el, run }, index) => ({
