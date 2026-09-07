@@ -168,6 +168,19 @@ export function readRichTextHtml(control: Control): string {
   return (plainTextarea(control)?.value ?? '').trim();
 }
 
+/**
+ * Whether the rich-text widget has actually initialised — the CKEditor iframe
+ * body, or an inline contenteditable, exists.
+ *
+ * TDX binds its own comment-template menu in the same init that creates the
+ * editor, and its handler calls setData on that instance: click the menu
+ * before that has happened and the click does nothing at all. The panel
+ * mounts as soon as the form markup is there, which is earlier.
+ */
+export function isEditorReady(control: Control): boolean {
+  return Boolean(sameOriginBody(editorIframe(control)) ?? contentEditableIn(control));
+}
+
 type StepResult = { ok: boolean; detail: string };
 
 function fillViaIframe(control: Control, html: string): StepResult | null {

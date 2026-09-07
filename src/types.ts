@@ -126,9 +126,6 @@ export interface Settings {
   /** Where the technician dragged the panel to, and how big they made it. */
   panelX?: number;
   panelY?: number;
-  /** The size it was dragged to by the corner grip. */
-  panelW?: number;
-  panelH?: number;
 }
 
 /** One line in the results panel: what happened to one field. */

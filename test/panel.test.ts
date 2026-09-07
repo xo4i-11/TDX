@@ -231,17 +231,6 @@ test('the panel can never be dragged off the screen', async () => {
   assert.equal(panelEl.style.left, `${saved.panelX}px`);
 });
 
-test('a size dragged from the corner grip is restored on the next mount', async () => {
-  const area = createMemoryArea();
-  const stores = createStores(area);
-  await stores.settings.patch({ panelW: 420, panelH: 500 });
-
-  const { $ } = await open(loadFixture(), stores);
-  const panelEl = must($<HTMLElement>('.panel'), 'panel missing');
-  assert.equal(panelEl.style.width, '420px');
-  assert.equal(panelEl.style.height, '500px');
-});
-
 test('a header button is a button, not a drag handle', async () => {
   const { $, doc, stores } = await open();
   const view = doc.defaultView;
@@ -482,6 +471,33 @@ test('the resolve page opens on the template the create form was left on', async
   assert.match(steps.value, /Downloaded the eduroam certificate/);
   const editor = update.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
   assert.match(editor?.innerHTML ?? '', /Downloaded the eduroam certificate/, 'the comment must already carry the steps');
+});
+
+// Falsifiability: TDX binds its template menu in the same init that builds
+// CKEditor, and the handler calls setData on that instance. Clicking before the
+// editor exists does nothing at all — silently — and the panel mounts on the
+// form markup, which is there first.
+test('the template menu is not clicked until the comment editor exists', async () => {
+  const doc = loadUpdateFixture();
+  const iframe = doc.querySelector<HTMLIFrameElement>('iframe');
+  assert.ok(iframe, 'the update fixture must carry a CKEditor iframe');
+  // Exactly what an uninitialised CKEditor looks like: the widget's markup is
+  // not there yet, only the form's.
+  const parent = iframe.parentElement;
+  assert.ok(parent);
+  iframe.remove();
+  wireTemplateMenu(doc);
+
+  await open(doc);
+  await settle();
+
+  parent.append(iframe);
+  loadEditor(doc, '');
+  await new Promise((r) => setTimeout(r, 300));
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /Your ticket has been resolved/, 'the template must load once the editor appears');
 });
 
 test('on load the panel opens Templates > ALL > Ticket Resolved by itself', async () => {

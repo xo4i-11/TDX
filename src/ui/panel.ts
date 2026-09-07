@@ -17,7 +17,7 @@ import { EMPTY_REQUESTOR, SHIPPED_TEMPLATES } from '../data/templates.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import { waitFor } from '../adapters/wait.ts';
-import { readRichTextHtml } from '../adapters/richtext.ts';
+import { readRichTextHtml, isEditorReady } from '../adapters/richtext.ts';
 import { isBlankHtml, toStepsTemplate } from '../data/resolved.ts';
 import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
 import type {
@@ -32,6 +32,9 @@ const FALLBACK_TEMPLATE: Template = SHIPPED_TEMPLATES[0]
 
 /** How long to keep watching for the Requestor card TDX renders around the form. */
 const CARD_TIMEOUT_MS = 15000;
+
+/** How long to give CKEditor to appear before giving up on TDX's own template menu. */
+const EDITOR_READY_MS = 12000;
 
 export interface CreatePanelOptions {
   /** The document the panel's own elements are created in — never the bare global. */
@@ -222,29 +225,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   const onResize = (): void => keepOnScreen();
   document.defaultView?.addEventListener('resize', onResize);
 
-  /**
-   * Remembers a corner resize. Debounced because ResizeObserver fires on every
-   * frame of the drag and each notification would otherwise be a storage
-   * write; a collapsed panel is the bubble, whose size is the stylesheet's
-   * business, not the technician's.
-   */
-  let sizeTimer: ReturnType<typeof setTimeout> | undefined;
-  // Null where there is no ResizeObserver (jsdom): the corner grip is a CSS
-  // feature of a real browser, and its absence must not stop the panel mounting.
-  const ResizeObserverCtor = document.defaultView?.ResizeObserver;
-  const observer = ResizeObserverCtor ? new ResizeObserverCtor(() => {
-    if (panel.dataset.collapsed === 'true') return;
-    keepOnScreen();
-    clearTimeout(sizeTimer);
-    sizeTimer = setTimeout(() => {
-      stores.settings.patch({ panelW: panel.offsetWidth, panelH: panel.offsetHeight }).catch(() => {
-        // A failed size write is not worth a visible error: the panel is the
-        // size the technician just dragged it to either way, it simply will
-        // not be that size after a reload.
-      });
-    }, 250);
-  }) : null;
-  observer?.observe(panel);
+  // The corner grip is CSS `resize: both`; the size it produces is not
+  // persisted. An earlier version observed it and wrote every size back, which
+  // meant the panel remembered sizes the technician never chose — a mount-time
+  // observation, a window resize — and reopened at them.
 
   /**
    * Drag by the header. Pointer events, not mouse events: one code path covers
@@ -532,6 +516,18 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       return;
     }
 
+    // TDX binds its template menu in the same init that builds CKEditor, and
+    // that handler calls setData on the instance — so a click sent before the
+    // editor exists does nothing, silently. The panel mounts as soon as the
+    // form markup is there, which is well before that.
+    try {
+      await waitFor(() => isEditorReady(control), { timeout: EDITOR_READY_MS, root: document, win: document.defaultView ?? undefined });
+    } catch {
+      state.autoTemplate = `The comment editor had not loaded after ${EDITOR_READY_MS}ms, so no template was loaded.`;
+      await fillNow();
+      return;
+    }
+
     // isBlankHtml, not a truthiness check: CKEditor seeds its body with a
     // placeholder paragraph, so an untouched comment box is never "".
     const existing = readRichTextHtml(control);
@@ -629,8 +625,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   document.body.append(host);
   await render();
-  if (initialSettings.panelW) panel.style.width = `${initialSettings.panelW}px`;
-  if (initialSettings.panelH) panel.style.height = `${initialSettings.panelH}px`;
   if (initialSettings.panelX !== undefined && initialSettings.panelY !== undefined) {
     place(initialSettings.panelX, initialSettings.panelY);
   }
@@ -666,8 +660,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     destroy() {
       document.removeEventListener('keydown', onEscape);
       document.defaultView?.removeEventListener('resize', onResize);
-      clearTimeout(sizeTimer);
-      observer?.disconnect();
       // highlightFilled (results.ts) marks controls on the page itself, not
       // inside this panel's shadow root — those dashed outlines must not
       // outlive the panel.
