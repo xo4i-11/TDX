@@ -29,6 +29,29 @@ deliberately skipped so you remember to set it.
 
 **The extension never submits.** It fills and stops.
 
+### Resolving a ticket
+
+On a ticket **update** form the panel switches to resolve mode and writes three
+fields: New Status (`Resolved`), the private-comment checkbox (unchecked, so the
+client can read the reply), and Comments.
+
+**Responsible is never written.** TDX defaults it to the right account, and a
+wrong write reassigns a real person's queue and emails them. It shows in the
+results as resolved-and-reported, so you can see it before saving.
+
+The comment body comes from TDX's own template, captured once per instance:
+open **Templates → ALL → Ticket Resolved** on a real update form, then click
+**Capture resolved template** in the panel. The panel finds the red placeholder
+text, shows you which block it will replace — everything else in that block is
+dropped — and on confirmation stores the body with `{{steps}}` in its place.
+
+Every later resolve substitutes your troubleshooting steps into that spot, one
+line per bullet. Picking a template pre-fills the steps box with that job's
+canned steps; edit them freely before filling. Clear the capture in Settings
+when UBIT edits the template, then capture again.
+
+
+
 ## How resolution works
 
 Four tiers. The highest one that matches wins, and every match records why.
