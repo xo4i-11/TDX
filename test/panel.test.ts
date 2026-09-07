@@ -255,19 +255,6 @@ test('a header button is a button, not a drag handle', async () => {
   assert.equal((await stores.settings.get()).panelX, undefined);
 });
 
-test('zooming persists and is clamped, so the panel cannot be shrunk out of use', async () => {
-  const { $, doc, stores } = await open();
-  click(must($('button[data-zoom-in]'), 'zoom-in button missing'), doc);
-  await settle();
-  assert.equal((await stores.settings.get()).zoom, 1.1);
-
-  for (let i = 0; i < 12; i++) {
-    click(must($('button[data-zoom-out]'), 'zoom-out button missing'), doc);
-    await settle();
-  }
-  assert.equal((await stores.settings.get()).zoom, 0.7, 'zoom must stop at the minimum, not keep going');
-});
-
 test('pressing Escape collapses the panel and remembers it, same as the button', async () => {
   const { $, doc, stores } = await open();
   const view = doc.defaultView;

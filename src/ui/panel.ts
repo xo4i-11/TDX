@@ -182,32 +182,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     panel.replaceChildren(errorEl, header(), await body());
   }
 
-  const ZOOM_STEP = 0.1;
-  const ZOOM_RANGE = [0.7, 1.6] as const;
-  let zoom = clampZoom(initialSettings.zoom ?? 1);
-
-  function clampZoom(value: number): number {
-    return Math.min(ZOOM_RANGE[1], Math.max(ZOOM_RANGE[0], Math.round(value * 100) / 100));
-  }
-
-  /**
-   * `zoom`, not `transform: scale()`: it scales layout rather than painting a
-   * scaled bitmap over it, so hit targets, the drag maths below and the
-   * page's own coordinates all stay in agreement. Chrome-only, which this
-   * extension is.
-   */
-  function applyZoom(): void {
-    panel.style.zoom = String(zoom);
-  }
-
-  async function setZoom(next: number): Promise<void> {
-    zoom = clampZoom(next);
-    applyZoom();
-    await stores.settings.patch({ zoom });
-    await render();
-    keepOnScreen();
-  }
-
   async function setCollapsed(collapsed: boolean): Promise<void> {
     panel.dataset.collapsed = String(collapsed);
     await stores.settings.patch({ collapsed });
@@ -220,11 +194,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   /** Where the panel was dragged to, or null while it still sits in its default corner. */
   let at: { x: number; y: number } | null = null;
 
-  /** Clamps to the viewport: the panel can never be dragged, zoomed or resized off-screen. */
-  function place(x: number, y: number): { x: number; y: number } {
+  /** Clamps to the viewport: the panel can never be dragged or resized off-screen. */
+  function place(x: number, y: number, measured?: { width: number; height: number }): { x: number; y: number } {
     const view = document.defaultView;
-    const width = panel.offsetWidth * zoom || 330;
-    const height = panel.offsetHeight * zoom || 120;
+    const width = measured?.width || panel.offsetWidth || 340;
+    const height = measured?.height || panel.offsetHeight || 120;
     const maxX = Math.max(0, (view?.innerWidth ?? width) - width);
     const maxY = Math.max(0, (view?.innerHeight ?? height) - height);
     at = { x: Math.min(maxX, Math.max(0, x)), y: Math.min(maxY, Math.max(0, y)) };
@@ -239,7 +213,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   /**
    * Re-clamps after anything that changes the panel's size or the window's:
-   * expanding, zooming in, or the technician resizing the browser. Without
+   * expanding it, the corner grip, or the technician resizing the browser. Without
    * this, a panel dragged to the right edge and then expanded hangs off it.
    */
   function keepOnScreen(): void {
@@ -284,21 +258,43 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const rect = panel.getBoundingClientRect();
       const offsetX = event.clientX - rect.left;
       const offsetY = event.clientY - rect.top;
+      // Measured once, here: reading offsetWidth inside the move handler
+      // forces a layout on every pointer event, and a pointer can outrun the
+      // compositor — that read is what makes a drag feel like it snags.
+      const size = { width: rect.width, height: rect.height };
       // Optional call: a fast drag must not drop the panel, but an environment
       // without pointer capture (jsdom) is not a reason to refuse to drag.
       handle.setPointerCapture?.(event.pointerId);
       panel.dataset.dragging = 'true';
       event.preventDefault();
 
+      // One write per animation frame. Pointer events fire faster than the
+      // screen redraws, so applying every one of them is work nobody sees —
+      // and the half-applied positions are what read as tearing.
+      // Falls back to applying straight away where there is no rAF (jsdom):
+      // the coalescing is a smoothness optimisation, not the drag itself.
+      const view = document.defaultView;
+      const schedule = view?.requestAnimationFrame?.bind(view)
+        ?? ((callback: FrameRequestCallback): number => { callback(0); return 0; });
+      const unschedule = view?.cancelAnimationFrame?.bind(view) ?? ((): void => {});
+      let frame = 0;
+      let pending: { x: number; y: number } | null = null;
       const move = (moveEvent: PointerEvent): void => {
-        place(moveEvent.clientX - offsetX, moveEvent.clientY - offsetY);
+        pending = { x: moveEvent.clientX - offsetX, y: moveEvent.clientY - offsetY };
+        if (frame) return;
+        frame = schedule(() => {
+          frame = 0;
+          if (pending) place(pending.x, pending.y, size);
+        });
       };
       const up = (upEvent: PointerEvent): void => {
         handle.removeEventListener('pointermove', move);
         handle.removeEventListener('pointerup', up);
         handle.removeEventListener('pointercancel', up);
+        unschedule(frame);
+        frame = 0;
         delete panel.dataset.dragging;
-        const dropped = place(upEvent.clientX - offsetX, upEvent.clientY - offsetY);
+        const dropped = place(upEvent.clientX - offsetX, upEvent.clientY - offsetY, size);
         stores.settings.patch({ panelX: dropped.x, panelY: dropped.y }).catch((error: unknown) => {
           setError(describeError(error));
         });
@@ -322,23 +318,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     settingsButton.title = 'Settings';
     settingsButton.setAttribute('aria-label', 'Settings');
 
-    const out = button('−', () => setZoom(zoom - ZOOM_STEP));
-    out.title = 'Smaller';
-    out.setAttribute('aria-label', 'Smaller');
-    out.setAttribute('data-zoom-out', '');
-
-    const inn = button('+', () => setZoom(zoom + ZOOM_STEP));
-    inn.title = 'Bigger';
-    inn.setAttribute('aria-label', 'Bigger');
-    inn.setAttribute('data-zoom-in', '');
-
     const collapsedNow = panel.dataset.collapsed === 'true';
     const collapse = button(collapsedNow ? '●' : '–', () => setCollapsed(!collapsedNow));
     collapse.setAttribute('data-collapse', '');
     collapse.title = collapsedNow ? 'Expand' : 'Minimise';
     collapse.setAttribute('aria-label', collapsedNow ? 'Expand' : 'Minimise');
 
-    head.append(title, out, inn, settingsButton, collapse);
+    head.append(title, settingsButton, collapse);
     startDragging(head);
     return head;
   }
@@ -643,7 +629,6 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
   document.body.append(host);
   await render();
-  applyZoom();
   if (initialSettings.panelW) panel.style.width = `${initialSettings.panelW}px`;
   if (initialSettings.panelH) panel.style.height = `${initialSettings.panelH}px`;
   if (initialSettings.panelX !== undefined && initialSettings.panelY !== undefined) {

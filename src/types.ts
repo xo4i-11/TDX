@@ -129,7 +129,6 @@ export interface Settings {
   /** The size it was dragged to by the corner grip. */
   panelW?: number;
   panelH?: number;
-  zoom?: number;
 }
 
 /** One line in the results panel: what happened to one field. */
