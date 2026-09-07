@@ -21,6 +21,7 @@ import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
 import { readRichTextHtml } from '../adapters/richtext.ts';
 import { findRedBlocks, toStepsTemplate, type RedBlock } from '../data/resolved.ts';
+import { findTemplateLink, applyTemplate } from '../adapters/tdx-templates.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
 } from '../types.ts';
@@ -73,6 +74,14 @@ interface PanelState {
   steps: string;
   /** Resolve mode: a capture awaiting confirmation. Never stored until the technician confirms. */
   capture: { html: string; blocks: RedBlock[]; chosen: number } | null;
+  /**
+   * Resolve mode: the body TDX's own template menu just loaded, red placeholder
+   * still in it. Preferred over the stored capture — it is what UBIT publishes
+   * today, not what was captured months ago.
+   */
+  loadedTemplateHtml: string | null;
+  /** What the automatic template load did, shown in the panel so a silent miss is impossible. */
+  autoTemplate: string;
   showDiagnostics: boolean;
   showSettings: boolean;
 }
@@ -88,6 +97,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     rows: [],
     steps: '',
     capture: null,
+    loadedTemplateHtml: null,
+    autoTemplate: '',
     showDiagnostics: false,
     showSettings: false,
   };
@@ -419,6 +430,9 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     box.placeholder = 'One step per line';
     box.value = state.steps;
     box.addEventListener('input', () => { state.steps = box.value; });
+    // Refill on blur rather than on every keystroke: one write per edit, and
+    // the technician never has to press anything to see their steps land.
+    box.addEventListener('change', guarded(() => fillNow()));
     stepsBox = box;
     el.append(box, noteEl('One line per bullet. This comment is visible to the client.'));
     return el;
@@ -428,9 +442,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const el = sectionEl('resolved', 'Resolved template');
     const current = await stores.settings.get();
 
+    if (state.autoTemplate) el.append(noteEl(state.autoTemplate));
     el.append(noteEl(current.resolvedCommentHtml
-      ? 'Captured. Fill substitutes your steps into it.'
-      : 'Not captured yet. On the form pick Templates > ALL > Ticket Resolved, then Capture.'));
+      ? 'Captured, as a fallback for when the menu load fails.'
+      : 'Nothing captured. The template is loaded from the page automatically; capture one only as a fallback.'));
 
     const capture = button('Capture resolved template', () => {
       const control = resolution.byField.get('comments')?.control;
@@ -494,6 +509,101 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return wrap;
   }
 
+  /**
+   * The body to write into Comments: what TDX's menu just loaded if the
+   * automatic load worked, otherwise the stored capture. The loaded one wins
+   * because it is what UBIT publishes today; the capture is the fallback for
+   * when the menu is missing or its fetch never lands.
+   */
+  function resolvedBody(current: Settings): string | null {
+    if (state.loadedTemplateHtml) {
+      const blocks = findRedBlocks(state.loadedTemplateHtml, document);
+      // No red in the freshly loaded body means the template changed shape;
+      // fall through to the capture rather than write boilerplate with no
+      // steps in it at all.
+      if (blocks.length) return toStepsTemplate(state.loadedTemplateHtml, document, 0);
+    }
+    return current.resolvedCommentHtml ?? null;
+  }
+
+  /** One fill, whether the button or the automatic flow asked for it. */
+  async function fillNow(): Promise<void> {
+    // Never fill through the resolution captured at mount — see rescan().
+    syncSteps();
+    await rescan();
+    const template = await selectedTemplate();
+    const suggestion = await serviceSuggestion();
+    const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
+    const serviceOffering = state.confirmedOffering ?? (state.confirmedService ? null : template.serviceOffering ?? null);
+    const current = await stores.settings.get();
+    // The body in the editor is the one this panel just loaded, not something
+    // the technician typed, so replacing it is not clobbering their work —
+    // and without this the comment row preserves and writes nothing.
+    const settings = state.loadedTemplateHtml ? { ...current, overwrite: true } : current;
+    state.rows = await runFill({
+      resolution,
+      mode,
+      requestor: state.requestor ?? EMPTY_REQUESTOR,
+      template,
+      service,
+      serviceOffering,
+      steps: state.steps,
+      resolvedCommentHtml: resolvedBody(current),
+      settings,
+      now: now(),
+    }, {
+      bridge,
+      // Writing Service makes TDX rebuild the Service Offering lookup, so the
+      // control planFill captured for it is detached by the time its turn comes.
+      refind: async (fieldKey) => {
+        await rescan();
+        return resolution.byField.get(fieldKey)?.control ?? null;
+      },
+    });
+    highlightFilled(state.rows, document);
+    await render();
+  }
+
+  /**
+   * Resolve mode's opening move, run once at mount: click TDX's own
+   * Templates > ALL > Ticket Resolved, wait for the editor to receive it, then
+   * fill. The technician opens no menu and clicks no button.
+   *
+   * Refuses to load over an editor that already has content — that content
+   * could be a comment someone was part-way through writing, and TDX's own
+   * template click would overwrite it without asking.
+   */
+  async function autoResolve(): Promise<void> {
+    const control = resolution.byField.get('comments')?.control ?? null;
+    if (!control) {
+      state.autoTemplate = 'No comment editor found on this page, so no template was loaded.';
+      return;
+    }
+
+    const existing = readRichTextHtml(control);
+    if (existing) {
+      state.autoTemplate = 'The comment box already had content, so no template was loaded over it.';
+      await fillNow();
+      return;
+    }
+
+    const link = findTemplateLink(document, 'Ticket Resolved', 'ALL');
+    if (!link) {
+      state.autoTemplate = 'Templates > ALL > Ticket Resolved is not in this page menu; using the captured template instead.';
+      await fillNow();
+      return;
+    }
+
+    const result = await applyTemplate(link, () => readRichTextHtml(control));
+    if (result.ok) {
+      state.loadedTemplateHtml = readRichTextHtml(control);
+      state.autoTemplate = 'Loaded Templates > ALL > Ticket Resolved.';
+    } else {
+      state.autoTemplate = `${result.detail}; using the captured template instead.`;
+    }
+    await fillNow();
+  }
+
   function fillSection(current: Settings): HTMLElement {
     const el = sectionEl('fill', 'Fill');
 
@@ -511,38 +621,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     const row = document.createElement('div');
     row.className = 'row';
 
-    const fill = button('Fill form', async () => {
-      // Never fill through the resolution captured at mount — see rescan().
-      syncSteps();
-      await rescan();
-      const template = await selectedTemplate();
-      const suggestion = await serviceSuggestion();
-      const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
-      const serviceOffering = state.confirmedOffering ?? (state.confirmedService ? null : template.serviceOffering ?? null);
-      const current = await stores.settings.get();
-      state.rows = await runFill({
-        resolution,
-        mode,
-        requestor: state.requestor ?? EMPTY_REQUESTOR,
-        template,
-        service,
-        serviceOffering,
-        steps: state.steps,
-        resolvedCommentHtml: current.resolvedCommentHtml ?? null,
-        settings: current,
-        now: now(),
-      }, {
-        bridge,
-        // Writing Service makes TDX rebuild the Service Offering lookup, so the
-        // control planFill captured for it is detached by the time its turn comes.
-        refind: async (fieldKey) => {
-          await rescan();
-          return resolution.byField.get(fieldKey)?.control ?? null;
-        },
-      });
-      highlightFilled(state.rows, document);
-      return render();
-    }, 'primary');
+    const fill = button('Fill form', () => fillNow(), 'primary');
     fill.setAttribute('data-fill', '');
 
     const diagnostics = button('Diagnostics', () => { state.showDiagnostics = !state.showDiagnostics; return render(); });
@@ -663,6 +742,10 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   // mount.ts's already-mounted guard would then match that corpse forever.
   document.body.append(host);
   await render();
+
+  // Deliberately not awaited: mounting must not wait on TDX's own fetch, and
+  // every failure inside is turned into visible panel text by guarded().
+  if (mode === 'resolve') guarded(autoResolve)();
 
   return {
     host,

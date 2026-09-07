@@ -621,3 +621,61 @@ test('choosing a template never wipes steps the technician typed', async () => {
 
   assert.equal(must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing').value, 'Something I typed');
 });
+
+const TDX_TEMPLATE_BODY = '<p>Your ticket has been resolved.</p><p><span style="color:#c00">steps taken</span></p><p>Thank you.</p>';
+
+/** Stands in for TDX: clicking a template link fetches a body into the editor. */
+function wireTemplateMenu(doc: Document, body = TDX_TEMPLATE_BODY): void {
+  for (const link of doc.querySelectorAll('a.js-template')) {
+    link.addEventListener('click', () => {
+      if ((link.textContent ?? '').trim() === 'Ticket Resolved') loadEditor(doc, body);
+    });
+  }
+}
+
+test('on load the panel opens Templates > ALL > Ticket Resolved by itself', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '');
+  wireTemplateMenu(doc);
+
+  await open(doc);
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /Your ticket has been resolved/);
+});
+
+// The whole point: no menu, no Fill click. Type steps, blur, done.
+test('typing steps fills the comment with no Fill click', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '');
+  wireTemplateMenu(doc);
+
+  const { $ } = await open(doc);
+  await settle();
+
+  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  steps.value = 'Restarted the device\nVerified the connection';
+  change(steps, doc);
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /<li>Restarted the device<\/li>/);
+  assert.match(editor?.innerHTML ?? '', /Your ticket has been resolved/, 'the TDX wording must survive');
+  assert.equal(editor?.innerHTML.includes('steps taken'), false, 'the red placeholder must be gone');
+  assert.equal(doc.querySelector<HTMLInputElement>('#CommentsIsPrivate')?.checked, false);
+});
+
+// Falsifiability: TDX's own template click overwrites without asking, so an
+// unprompted auto-load would destroy a part-written comment.
+test('a comment box with content is never loaded over', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, '<p>Half a comment I was writing</p>');
+  wireTemplateMenu(doc);
+
+  await open(doc);
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /Half a comment I was writing/);
+});
