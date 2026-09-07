@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
 import { harvest } from '../src/core/harvest.ts';
-import { fillRichText, readRichText, createBridgeClient } from '../src/adapters/richtext.ts';
+import { fillRichText, readRichText, readRichTextHtml, createBridgeClient } from '../src/adapters/richtext.ts';
 import type { Bridge, Control } from '../src/types.ts';
 
 const HTML = '<p>Removed the stale eduroam profile.</p>';
@@ -243,4 +243,16 @@ test('createBridgeClient removes its message listener once a reply lands', async
   });
   await promise;
   assert.equal(listeners.size, 0, 'listener must be torn down once the round trip resolves');
+});
+
+// Capture needs the markup; fill policy only ever needed "is there anything
+// here", which is why readRichText strips it.
+test('readRichTextHtml returns markup where readRichText returns text', () => {
+  const control = richControl(WITH_IFRAME);
+  const iframe = control.richtext?.textarea.closest('.form-group')?.querySelector('iframe') as HTMLIFrameElement;
+  const body = iframe.contentDocument?.body;
+  assert.ok(body);
+  body.innerHTML = '<p>Removed the <b>stale</b> profile.</p>';
+  assert.match(readRichTextHtml(control), /<b>stale<\/b>/);
+  assert.equal(readRichText(control).includes('<b>'), false);
 });

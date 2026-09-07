@@ -152,6 +152,22 @@ export function readRichText(control: Control): string {
   return stripTags(textarea?.value ?? '');
 }
 
+/**
+ * Current content as markup. `readRichText` returns text because fill policy
+ * only needs "is there anything here"; capturing a template needs the tags.
+ * Same three-path order as the fill side, for the same reason: whichever state
+ * the widget is in, one of these is the live one.
+ */
+export function readRichTextHtml(control: Control): string {
+  const body = sameOriginBody(editorIframe(control));
+  if (body) return body.innerHTML.trim();
+
+  const editable = contentEditableIn(control);
+  if (editable) return editable.innerHTML.trim();
+
+  return (plainTextarea(control)?.value ?? '').trim();
+}
+
 type StepResult = { ok: boolean; detail: string };
 
 function fillViaIframe(control: Control, html: string): StepResult | null {
