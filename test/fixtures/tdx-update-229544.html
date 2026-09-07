@@ -1,0 +1,1874 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>TDX fixture form 162</title></head>
+<body>
+<form action="https://ubuffalo.teamdynamix.com/TDNext/Apps/31/Tickets/Update?ticketId=100000" class="js-entry-form" enctype="multipart/form-data" id="frmTicketUpdate" method="post" novalidate="novalidate">      <div class="col-sm-8">
+        <div class="gutter-bottom">
+
+          <input name="__RequestVerificationToken" type="hidden" value="REDACTED">
+          <input class="js-revealed-fields" id="RevealedFieldJson" name="RevealedFieldJson" type="hidden" value="">
+          <input class="js-ai-agent-token" id="AIAgentAssistSession_AgentToken" name="AIAgentAssistSession.AgentToken" type="hidden" value="">
+          <input class="js-ai-auth-token" id="AIAgentAssistSession_AuthToken" name="AIAgentAssistSession.AuthToken" type="hidden" value="">
+          <input class="js-ai-session-id" id="AIAgentAssistSession_SessionId" name="AIAgentAssistSession.SessionId" type="hidden" value="">
+          <input data-val="true" data-val-required="The CanGenerateKBArticle field is required." id="AIAgentAssistSession_CanGenerateKBArticle" name="AIAgentAssistSession.CanGenerateKBArticle" type="hidden" value="False">
+
+          <div>
+            <div class="validation-summary-valid field-validation-error" data-valmsg-summary="true"><ul><li style="display:none"></li>
+</ul></div>
+          </div>
+
+
+          
+        <div class="tdx-required-field-help">
+          All fields marked with an asterisk (<span class="red">*</span>) are required.
+        </div>
+      <div class="form-group required">
+            <label class="control-label" for="NewStatusId">New Status</label>
+            <select class="form-control valid" data-val="true" data-val-number="The field New Status must be a number." data-val-required="The New Status field is required." id="NewStatusId" name="NewStatusId" aria-required="true" aria-invalid="false"><option value=""></option>
+<option value="77">New</option>
+<option value="79">In Process</option>
+<option value="83">On Hold</option>
+<option value="178">Scheduled</option>
+<option selected="selected" value="130">Waiting for Customer</option>
+<option value="80">Resolved</option>
+<option value="81">Closed</option>
+<option value="82">Cancelled</option>
+<option value="102">CR - Approval Requested</option>
+<option value="103">CR - Approved</option>
+<option value="104">CR - Under Review</option>
+<option value="105">CR- Additional Information Required</option>
+</select>
+            <span class="field-validation-valid" data-valmsg-for="NewStatusId" data-valmsg-replace="true"></span>
+          </div>
+
+          <div class="form-group js-off-hold-date" style="display: none;">
+            <label class="control-label" for="NewGoesOffHoldDate">Goes Off Hold<span class="sr-only"> (mm/dd/yyyy)</span></label><a role="button" href="javascript:void(0);" class="tdx-date-format-icon" data-toggle="tooltip" onclick="return false;" title="" data-original-title="&lt;div class=&quot;date-format-tooltip&quot;&gt;This field uses a date picker. To manually enter a date without the picker, use the format: &lt;strong&gt;mm/dd/yyyy&lt;/strong&gt;&lt;br&gt;&lt;br&gt;You can also use the following keyboard shortcuts to navigate the date picker:&lt;br&gt;• &lt;kbd&gt;Ctrl&lt;/kbd&gt; + &lt;kbd aria-label=&quot;Left Arrow&quot;&gt;←&lt;/kbd&gt;: Move back one day&lt;br&gt;• &lt;kbd&gt;Ctrl&lt;/kbd&gt; + &lt;kbd aria-label=&quot;Up Arrow&quot;&gt;↑&lt;/kbd&gt;: Move back one week&lt;br&gt;• &lt;kbd&gt;Ctrl&lt;/kbd&gt; + &lt;kbd aria-label=&quot;Right Arrow&quot;&gt;→&lt;/kbd&gt;: Move forward one day&lt;br&gt;• &lt;kbd&gt;Ctrl&lt;/kbd&gt; + &lt;kbd aria-label=&quot;Down Arrow&quot;&gt;↓&lt;/kbd&gt;: Move forward one week&lt;br&gt;• &lt;kbd&gt;Enter&lt;/kbd&gt;: Confirm selection&lt;br&gt;&lt;/div&gt;"><span class="fa-solid fa-circle-info" aria-hidden="true"></span><span class="sr-only">Show date format and keyboard instructions</span></a>
+            <div class="clearfix">
+              <input autocomplete="off" class="form-control datetimepicker pull-left hasDatepicker" data-val="true" data-val-curdate="Goes Off Hold must be after the current date." data-val-date="The field Goes Off Hold must be a date." id="NewGoesOffHoldDate" name="NewGoesOffHoldDate" type="text" value="" style="width: 226px;">
+              <button type="button" class="btn btn-link pull-left js-off-hold-clear">
+                Clear Off Hold Date
+              </button>
+            </div>
+            <span class="field-validation-valid js-off-hold-date-validation-msg" data-valmsg-for="NewGoesOffHoldDate" data-valmsg-replace="true"></span>
+            <div class="gutter-top-sm alert alert-warning js-off-hold-warning" role="alert">
+              If "Goes Off Hold" is blank, the service request will never go off hold.
+            </div>
+          </div>
+
+          <div class="js-remaining-tasks-progress-alert alert alert-warning" style="display:none;">
+            <span class="fa-solid fa-fw fa-spinner fa-pulse" aria-hidden="true"></span>
+            <span class="padding-left-xs">Checking for remaining tasks</span>
+          </div>
+
+          <div class="form-group js-close-remaining-tasks" style="display: none;">
+            <div class="padding-bottom-xs">
+              <fieldset>
+                <legend class="sr-only">Close Remaining Ticket Tasks</legend>
+                <span class="control-label">
+                  Close Ticket Tasks?
+                  <span class="ReqFld">*</span>
+                  <a title="View Remaining Ticket Tasks" href="https://ubuffalo.teamdynamix.com/TDNext/Apps/31/Tickets/Update?TicketID=100000#" class="js-remaining-tasks-link no-underline" onclick="javascript:openWinHref(event, 992, 700, &#39;AffectedTicketTasks&#39;);">
+                    <span class="fa-solid fa-ticket gutter-left-xs" aria-hidden="true"></span>
+                    <span class="sr-only">View Remaining Ticket Tasks</span>
+                  </a>
+                </span>
+                <div>
+                  <label class="radio-inline">
+                    <input class="js-remaining-tasks" id="ShouldCloseRemainingTasks" name="ShouldCloseRemainingTasks" type="radio" value="False">
+                    No
+                  </label>
+
+                  <label class="radio-inline">
+                    <input class="js-remaining-tasks" id="ShouldCloseRemainingTasks" name="ShouldCloseRemainingTasks" type="radio" value="True">
+                    Yes
+                  </label>
+                </div>
+                <span class="field-validation-valid" data-valmsg-for="ShouldCloseRemainingTasks" data-valmsg-replace="true"></span>
+              </fieldset>
+            </div>
+
+            <div class="alert alert-warning">
+              This will close a ticket with open ticket tasks. Choose whether you want to close those ticket tasks
+              or leave them open. Click the ticket icon to view a list of affected ticket tasks.
+            </div>
+          </div>
+
+          
+            <div class="alert alert-warning" role="alert">
+              This service request was created with a type that had
+              no associated time types or the time types were removed from the service request.
+              You will not be able to add time to this service request while there are no associated
+              time types.
+            </div>
+
+<div class="form-group" data-fieldid="1279" data-fieldtype="responsible" id="attribute1279-grp"><label class="control-label" for="NewResponsibleId">Responsible</label><a href="https://ubuffalo.teamdynamix.com/TDNext/Apps/31/Tickets/Update?TicketID=100000#attribute1279-grpHelp" data-toggle="tooltip" data-html="true" role="button" title="" class="js-help js-help--hidden gutter-left-xs" aria-label="Show Help for Responsible" data-original-title="
+                The person or group primarily responsible for a ticket.
+              "><span class="fa-solid fa-question-circle" aria-hidden="true"></span></a>              <a id="lnkResponsibleProfile" style="display: none;">
+              </a>
+              <div class="help-block tooltip" aria-live="polite" aria-atomic="true" id="attribute1279-help">The person or group primarily responsible for a ticket.</div>
+<div class="tdx-lookup-group"><input aria-label="" id="attribute1279_reset" name="NewResponsibleId_reset" type="hidden" value="00000000-0000-0000-0000-000000000000"><span class="k-input k-combobox js-resp-lookup k-input-solid k-input-md k-rounded-md" style=""><input name="NewResponsibleId_input" class="k-input-inner js-resp-lookup valid" type="text" autocomplete="off" title="" role="combobox" aria-expanded="false" style="" data-skip="true" placeholder="Start typing..." tabindex="0" aria-disabled="false" aria-readonly="false" aria-autocomplete="list" aria-controls="attribute1279_listbox" aria-busy="false" aria-invalid="false"><div id="instruction-attribute1279" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Use the clear button to remove the selection.</div><button type="button" class="k-input-button k-button k-button-md k-button-solid k-button-solid-base k-icon-button" aria-label="expand combobox" role="button" tabindex="-1"><span class="k-icon k-svg-icon k-svg-i-caret-alt-down k-button-icon" aria-hidden="true"><svg viewBox="0 0 512 512" focusable="false" xmlns="http://www.w3.org/2000/svg" style="display: block;"><path d="M256 352 128 160h256z"></path></svg></span></button><input value="00000000-0000-0000-0000-000000000000" aria-label="" class="js-resp-lookup valid" data-default="[{&quot;jsondata&quot;:{&quot;id&quot;:&quot;00000000-0000-0000-0000-000000000000&quot;,&quot;name&quot;:&quot;Test Responsible&quot;,&quot;email&quot;:null,&quot;isUser&quot;:true,&quot;rate&quot;:0.0,&quot;displayName&quot;:&quot;Test Responsible&quot;,&quot;title&quot;:null},&quot;caption&quot;:&quot;Test Responsible&quot;,&quot;subcaption&quot;:null,&quot;value&quot;:&quot;00000000-0000-0000-0000-000000000000&quot;}]" data-multiple="false" data-paged="false" data-selectlookup="true" data-wscontenttype="application/json; charset=utf-8" data-wssearchparam="tag" data-wsurl="/TDNext/Services/JSON/AssignmentLookupService.asmx/GetItemsForInstanceWithGroupAssociations?instanceID=31" data-wsverb="POST" id="attribute1279" name="NewResponsibleId" type="text" data-role="combobox" style="display: none;" aria-disabled="false" aria-readonly="false" aria-invalid="false"></span><span class="tdx-lookup-button-group "><a class="btn-default" data-buttontarget="attribute1279" data-lookupaction="select" data-lookupurl="/TDNext/Apps/31/Shared/ApplicationAssignmentLookup.aspx?AppID=31&amp;RequireAppAssociation=1" data-windowurl="/TDNext/kendo/kendowindow" href="javascript:void(0);" id="attribute1279_lookup" role="button" title="Lookup Responsible" type="button"><span class="fa fa-fw fa-nopad fa-search" aria-hidden="true"></span><span class="sr-only">Lookup Responsible</span></a><a class="btn-default" data-buttontarget="attribute1279" data-lookupaction="clear" href="javascript:void(0);" id="attribute1279_clear" role="button" title="Clear Responsible" type="button"><span class="fa fa-thin fa-nopad fa-times " aria-hidden="true"></span><span class="sr-only">Clear Responsible</span></a></span>
+</div>              <div class="checkbox">
+                <label for="Item_NotifyResponsible">
+                  <input type="checkbox" id="Item_NotifyResponsible" name="Item.NotifyResponsible" value="true" checked="checked">
+                  <text>Notify the new resource of the service request assignment.</text>
+                </label>
+              </div>
+</div>
+          <div id="divComments" class="form-group required">
+            <label class="control-label" for="Comments_Content">Comments</label>
+            <div class="tdx-min-width-fit-content">
+              <div class="comment-options clearfix">
+                <div class="pull-left">
+                    <div class="dropdown padding-left-xs" style="position: relative; top: 2px;">
+                      <a class="dropdown-toggle" href="javascript:;" id="lnkShowTemplates" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Templates
+                        <span class="caret"></span>
+                      </a>
+                      <ul class="dropdown-menu multi-level" aria-labelledby="lnkShowTemplates">
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              ACO
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="16">
+                                    Card Access Install Purchasing Details
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="63">
+                                    Safety Audit
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="64">
+                                    Safety Audit Failed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="201">
+                                    Securitas - PO Information
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown" aria-expanded="false">
+                              ALL
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="163">
+                                    Customer Inquiry - Still Need Assistance?
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="31">
+                                    RF to TDX Complete
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="62">
+                                    Ticket Closed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="61">
+                                    Ticket Resolved
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="306">
+                                    Ticket Resolved - No Response
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              CATT
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="315">
+                                    Assessment - Survey reopen
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="153">
+                                    CATT - App Admins Reply
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="143">
+                                    Instructional Support - Copying Course Content
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="142">
+                                    Instructional Support - Discussion Boards
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="138">
+                                    Instructional Support - Enabling Course Access
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="147">
+                                    Instructional Support - Panopto Videos
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="144">
+                                    Instructional Support - Special Access
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="146">
+                                    Instructional Support - Turnitin
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="136">
+                                    Template For Creating Templates
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="141">
+                                    UB Learns - Grading in the Grade Book
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              CIO Operations
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="463">
+                                    SAS Tickets
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="462">
+                                    SPSS tickets
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              EAS
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="457">
+                                    Doc Mgt - Adding Perceptive Content Development Connection Profile
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="208">
+                                    Doc Mgt - Verify Perceptive Content Connection Profile
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              EIS
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="496">
+                                    Oracle DB CPU Standard Maintenance Schedule
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              GSE
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="438">
+                                    GSE - Adobe Acrobat Mac Initial setup
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="439">
+                                    GSE - Adobe Acrobat Windows Initial setup
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="164">
+                                    IT: Qualtrics Account Created
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              IFMO
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="495">
+                                    IFMO - Classroom Issues Sent to FPMO
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="488">
+                                    IFMO - Classroom Issues Standard Response for Facilities
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="489">
+                                    IFMO - DAX Issue Standard Response
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="490">
+                                    IFMO - Forward to University Facilities
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="486">
+                                    IFMO - UBSRS Frozen Standard Response
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="487">
+                                    IFMO - USBRS Reservation Open Dates
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              IHI
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="479">
+                                    IHI VM Account
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="202">
+                                    Patient List Release Information
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="269">
+                                    Requesting TrinetX Data Request Description
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="494">
+                                    TrinetX Account - External Permission
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="154">
+                                    TrinetX Account Created
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="398">
+                                    TrinetX Account Reset Password Creation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="199">
+                                    TrinetX Data Order Form
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="190">
+                                    TrinetX Patient List
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              ISO
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="476">
+                                    Endpoint Exception - Dean/VP/Designee Authorization
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="475">
+                                    Endpoint Exception - Distributed IT Authorization
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="477">
+                                    Endpoint Exception - Request Denied
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="435">
+                                    Sensitive UBbox Splunk Monitoring Created
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              ITCX
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="182">
+                                    C&amp;C: Recording Confirmation - 01 Standard
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="183">
+                                    C&amp;C: Recording Confirmation - 02 No Download
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="185">
+                                    C&amp;C: Recording Confirmation - 03 No Camera
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="186">
+                                    C&amp;C: Recording Confirmation - 04 No Camera AND No Download
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="184">
+                                    C&amp;C: Recording Confirmation - 05 Live Stream
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="436">
+                                    C&amp;C: Recording Confirmation - 06 Live Stream + No Download
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="204">
+                                    C&amp;C: Recording Confirmation - Event Recording
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="402">
+                                    C&amp;C: Recording Confirmation - Event Recording 02 No Download
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="393">
+                                    C&amp;C: Recording for Accommodation - No Download
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="188">
+                                    C&amp;C: Webinar License Assigned
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="189">
+                                    C&amp;C: Webinar license removed + date for next assignment
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="187">
+                                    C&amp;C: Webinar License Reserved
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="313">
+                                    CTS: Resolved Classroom Tech Issue
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="456">
+                                    FS: Acrobat Pro Setup
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="455">
+                                    FS: Profile Storage Space Script
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="197">
+                                    FS: Resolved Profile Storage Error
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="471">
+                                    test
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              LAW
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="308">
+                                    @Ticket In Process
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="309">
+                                    @Ticket No Customer Response (Resolved)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="245">
+                                    @Ticket Resolved
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="310">
+                                    @Ticket Waiting On Customer
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              NCS
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="151">
+                                    Cable Infrastructure - Quote Email
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="15">
+                                    Card Access Site Visit Info
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="18">
+                                    CUCM: End User Reset
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="19">
+                                    General: Phone Service Established
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="17">
+                                    Security Request – Node Device Notification
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="20">
+                                    Voicemail: Initialize After Phone Reassignment
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="21">
+                                    Voicemail: No Mailbox
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="23">
+                                    Voicemail: PIN Reset Instructions
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="22">
+                                    Voicemail: Voicemail to Email
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="24">
+                                    VoIP: Reassignment Consultation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="25">
+                                    VoIP: Softphone Added
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              NURS
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="211">
+                                    NURS - Card Swipe Access Added Manually
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="212">
+                                    NURS - Card Swipe Access DARM Group Verified
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="216">
+                                    NURS - Departing Faculty / Staff
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="320">
+                                    NURS - File Redirection: UBFS to OneDrive
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="480">
+                                    NURS - Loaner laptop response
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="214">
+                                    NURS - New Adjunct Account Has been Processed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="217">
+                                    NURS - New Clinical Lab Assistant Has Been Processed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="215">
+                                    NURS - New Faculty / Staff Account Has Been Processed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="213">
+                                    NURS - New Volunteer Account Has Been Processed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="210">
+                                    NURS - Phishing Positive
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="209">
+                                    NURS - Reboot
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="262">
+                                    NURS - Re-Image Device
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="452">
+                                    NURS - re-image lab/classroom
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="249">
+                                    NURS - Replace Computer
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="451">
+                                    NURS - Replace Computer in Lab / Classroom
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="399">
+                                    NURS - Schedule Device Update
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="400">
+                                    NURS - Team Creation Request
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              OIA
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="470">
+                                    Possible Service Delay
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              SPHHP
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="473">
+                                    SPHHP Resolved Tickets
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              SST
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="155">
+                                    MRA Scheduling Response
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="161">
+                                    Navigate Access Granted
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              SSW
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="497">
+                                    Remote Session - Date/Time
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              SVPFAC
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="498">
+                                    SVPFAC - Resolved Template
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              TDX Admin
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="160">
+                                    Sensitive Data Exposed
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              UADV
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="200">
+                                    Remote Support
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              UBIT Alert - Planned
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="72">
+                                    Administrative Virtual Private Network (VPN)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="464">
+                                    BullsAI and Related Applications and Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="73">
+                                    Central Exchange Email
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="74">
+                                    Central Load Balancer
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="75">
+                                    Centrally Hosted MySQL Databases
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="76">
+                                    Centrally Hosted Oracle Databases
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="32">
+                                    COEUS Grant Submission
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="77">
+                                    Domain Name Service (DNS) and Network Time Protocol (NTP)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="78">
+                                    Duo Two Step Verification
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="79">
+                                    E-Directory, LDAP, Whitepages
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="1">
+                                    Eduroam Wi-Fi Configuration (SecureW2)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="2">
+                                    Firewall
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="33">
+                                    HUB and Related Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="3">
+                                    Internet 1 or 2 Outage
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="4">
+                                    Jabber
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="5">
+                                    Jabber File Transfer
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="80">
+                                    Login Services and UBITName Manager
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="81">
+                                    Login to Multiple UB Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="83">
+                                    Multiple UB Applications on UB Storage Infrastructure
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="82">
+                                    Multiple UB Applications on VMWare Storage Infrastructure
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="8">
+                                    Network Maintenance (Switch Install)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="6">
+                                    Network, Telephones and Other Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="9">
+                                    Off-Campus Phone Calls
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="129">
+                                    Other
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="53">
+                                    Panopto
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="39">
+                                    Parking and My Parking Permit
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="54">
+                                    Path Finder, TAP and Enterprise Business Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="181">
+                                    Printing at UB Print Anywhere Kiosks
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="84">
+                                    Server Backup Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="42">
+                                    TeamDynamix
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="11">
+                                    Telephone Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="85">
+                                    UB Active Directory (UBAD)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="86">
+                                    UB Cloud-Based Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="87">
+                                    UB Containers as a Service (CaaS) and Related Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="34">
+                                    UB Course Evaluations (UBCE)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="89">
+                                    UB File Service (UBfs)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="131">
+                                    UB Institutional Repository (UBIR)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="90">
+                                    UB Learns
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="91">
+                                    UB Listserv Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="92">
+                                    UB Version Control System (UBVCS)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="122">
+                                    UB WordPress
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="93">
+                                    UBbox
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="94">
+                                    UBbox, Zoom and Other Services - ADFS Migration
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="41">
+                                    UBCMS Author Tool
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="132">
+                                    UBIT Help Center Online (Remedyforce)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="95">
+                                    UBITName Manager
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="96">
+                                    UBUnix System
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="12">
+                                    Verizon Cellular Network (DAS)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="13">
+                                    Virtual Private Network (VPN)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="97">
+                                    Virtual Private Network (VPN)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="98">
+                                    Webex
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              UBIT Alert - Unplanned
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="465">
+                                    BullsAI and Related Applications and Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="71">
+                                    Central Exchange Email
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="99">
+                                    Central Load Balancer
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="100">
+                                    Centrally Hosted MySQL Databases
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="101">
+                                    Centrally Hosted Oracle Databases
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="123">
+                                    COEUS Grant Submission
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="102">
+                                    Computer Server Room Environment Problem
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="103">
+                                    Domain Name Service (DNS) and Network Time Protocol (NTP)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="104">
+                                    Duo Two-Step Verification
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="105">
+                                    E-Directory, LDAP, Whitepages
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="44">
+                                    HUB and Related Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="45">
+                                    IT Security
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="26">
+                                    Jabber
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="27">
+                                    Jabber File Transfer
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="106">
+                                    Login to Multiple UB Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="121">
+                                    Multiple UB Applications on UB Storage Infrastructure
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="107">
+                                    Multiple UB Applications on VMWare Storage Infrastructure
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="55">
+                                    Navigate
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="14">
+                                    Network Redundancy
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="28">
+                                    Network, Telephones and Other Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="29">
+                                    Other
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="52">
+                                    Panopto
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="47">
+                                    Parking and My Parking Permit
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="56">
+                                    Path Finder, TAP and Enterprise Business Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="180">
+                                    Printing at UB Print Anywhere Kiosks
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="57">
+                                    Public Computing Site Workstations
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="108">
+                                    Server Backup Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="128">
+                                    TeamDynamix
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="125">
+                                    Telephone Call Center Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="109">
+                                    UB Active Directory (UBAD)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="126">
+                                    UB Business Application
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="110">
+                                    UB Cloud-Based Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="111">
+                                    UB Containers as a Service (CaaS) and Related Applications
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="43">
+                                    UB Course Evaluations (UBCE)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="112">
+                                    UB File Service (UBfs)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="127">
+                                    UB Institutional Repository (UBIR)
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="113">
+                                    UB Learns
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="114">
+                                    UB Listserv Service
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="115">
+                                    UB WordPress
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="116">
+                                    UBbox
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="49">
+                                    UBCMS Author Tool
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="50">
+                                    UBCMS Author Tool - Page Activations Delayed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="51">
+                                    UBCMS Published Websites
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="117">
+                                    UBITName Login to Multiple Services
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="118">
+                                    UBITName Manager
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="119">
+                                    UBUnix System
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="120">
+                                    Webex
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              UBIT HC
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="307">
+                                    *Intake
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="387">
+                                    HC: Alumni Email Retirement - Escalation to Alumni Office
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="422">
+                                    HC: Alumni Email Retirement - Extension or Reactivation for retrieving email and files
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="474">
+                                    HC: Alumni Email Retirement - Extension or Reactivation for retrieving EMAIL ONLY
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="264">
+                                    HC: Alumni Email Retirement - For 6/1/2025 Grads and onward
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="267">
+                                    HC: Alumni Email Retirement - InactiveSuspended - ReEnabled
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="265">
+                                    HC: Alumni Email Retirement - No Mailbox / Reactivation Denied
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="166">
+                                    HC: DUO - Bypass Code - Identity Assurance Required
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="165">
+                                    HC: DUO - Bypass Code - New Issued
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="491">
+                                    HC: DUO - Mobile Activation Sent
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="167">
+                                    HC: Email Template - General Request - More Information Needed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="397">
+                                    HC: Employee Access Termination - Complete
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="207">
+                                    HC: Google Extension - Only Approved Users Can Use
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="493">
+                                    HC: Mac Microsoft 365 Activation Troubleshooting
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="172">
+                                    HC: Telephone - Voicemail PIN Reset - Completed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="203">
+                                    HC: Troubleshooting - Browser Issues
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="159">
+                                    HC: UBITName - Change - Completed
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="433">
+                                    HC: UBITName - Change - Consultation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="156">
+                                    HC: UBITName - Change - Customer Instructions
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="157">
+                                    HC: UBITName - Change - Extension
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="158">
+                                    HC: UBITName - Change - Submitted
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="177">
+                                    HC: UBITName - Compromised UBITName - Completed by CITHC - Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="178">
+                                    HC: UBITName - Compromised UBITName - Completed by CITHC - Non-Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="175">
+                                    HC: UBITName - Compromised UBITName - Completed by Customer - Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="176">
+                                    HC: UBITName - Compromised UBITName - Completed by Customer - Non-Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="205">
+                                    HC: UBITName - Compromised UBITName - Completed by ISO - Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="206">
+                                    HC: UBITName - Compromised UBITName - Completed by ISO - Non-Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="173">
+                                    HC: UBITName - Compromised UBITName - Notified - Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="174">
+                                    HC: UBITName - Compromised UBITName - Notified - Non-Employee
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="434">
+                                    HC: UBITName - Duplicate UBITName Consolidation - Migration of Data Between UBITNames
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="169">
+                                    HC: UBITName - Identity Assurance - Emailed ID
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="170">
+                                    HC: UBITName - Identity Assurance - Invalid ID
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="171">
+                                    HC: UBITName - Identity Assurance - Name Mismatch
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="149">
+                                    HC: UBITName - Identity Assurance - Non-UB Email
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="152">
+                                    HC: UBITName - Identity Assurance - Password Reset Request
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="196">
+                                    HC: UBITName Security Concerns Recommendation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="191">
+                                    HC: WFC Resolution
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="484">
+                                    HC: WiFi Reconfiguration
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="133">
+                                    TS: Security Exploit - 1st
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="60">
+                                    TS: Security Exploit - 1st Mac
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="134">
+                                    TS: Security Exploit - 2nd
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="485">
+                                    TS: Security Exploit - No Response Notice
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="162">
+                                    UBIT Tech Squad Intake Form
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="179">
+                                    X-HC: Google Migration Active Students-Staff-Faculty
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="198">
+                                    X-HC: Google Migration Alumni
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                          <li class="dropdown-submenu">
+                            <a tabindex="-1" href="javascript:;" data-toggle="dropdown">
+                              ULIB
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="150">
+                                    ULIB - Digital Repositories - RDS Redirect
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="192">
+                                    ULIB - Resource Access - Alumnus no longer has access
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="193">
+                                    ULIB - Resource Access - Alumnus no longer has access variation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="195">
+                                    ULIB - Resource Access - Open access title isn’t open
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="312">
+                                    ULIB - Resource Access - TOS Violation
+                                  </a>
+                                </li>
+                                <li>
+                                  <a href="javascript:;" class="js-template" data-template-id="194">
+                                    ULIB - Resource Access - Unpaywall bad link
+                                  </a>
+                                </li>
+                            </ul>
+                          </li>
+                      </ul>
+                    </div>
+                </div>
+                <div class="pull-right">
+                  <label class="checkbox-inline" for="CommentsIsPrivate">
+                    <input checked="checked" data-val="true" data-val-required="The CommentsIsPrivate field is required." id="CommentsIsPrivate" name="CommentsIsPrivate" type="checkbox" value="true"><input name="CommentsIsPrivate" type="hidden" value="false">
+                    Make comments private <span class="hidden-xs">(only visible to UB Tickets users)</span>
+                  </label>
+                </div>
+              </div>
+              <div>
+                
+
+
+  <style>
+    .cke .cke_toolgroup {
+      margin-right: 1px;
+    }
+
+    .cke .cke_combo_button {
+      margin-right: 1px;
+    }
+
+    .cke .cke_combo_text {
+      width: 60px !important;
+    }
+  </style>
+
+
+
+
+
+<div>
+  <textarea cols="20" data-val="true" data-val-maxlength-ckeditor="Comments cannot be longer than 20,000 characters (including formatting characters)." data-val-maxlength-max-ckeditor="20000" data-val-required-ckeditor="The Comments field is required." id="Comments_Content" name="Comments.Content" rows="2" style="visibility: hidden; display: none;"></textarea><div id="cke_Comments_Content" class="cke_1 cke cke_reset cke_chrome cke_editor_Comments_Content cke_ltr cke_browser_webkit" dir="ltr" lang="en" role="application" aria-labelledby="cke_Comments_Content_arialbl"><span id="cke_Comments_Content_arialbl" class="cke_voice_label">Comments</span><div class="cke_inner cke_reset" role="presentation"><span id="cke_1_top" class="cke_top cke_reset_all" role="presentation" style="height: auto; user-select: none;"><span id="cke_8" class="cke_voice_label">Editor toolbars</span><span id="cke_1_toolbox" class="cke_toolbox" role="group" aria-labelledby="cke_8" onmousedown="return false;"><span id="cke_12" class="cke_toolbar" aria-labelledby="cke_12_label" role="toolbar"><span id="cke_12_label" class="cke_voice_label">Styles</span><span class="cke_toolbar_start"></span><span id="cke_9" class="cke_combo cke_combo__format cke_combo_off" role="presentation"><span id="cke_9_label" class="cke_combo_label">Format</span><a class="cke_combo_button" title="Paragraph Format" tabindex="-1" href="javascript:void(&#39;Paragraph Format&#39;)" hidefocus="true" role="button" aria-labelledby="cke_9_label" aria-haspopup="true" onkeydown="return CKEDITOR.tools.callFunction(3,event,this);" onfocus="return CKEDITOR.tools.callFunction(4,event);" onclick="CKEDITOR.tools.callFunction(2,this);return false;"><span id="cke_9_text" class="cke_combo_text cke_combo_inlinelabel">Format</span><span class="cke_combo_open"><span class="cke_combo_arrow"></span></span></a></span><span id="cke_10" class="cke_combo cke_combo__font cke_combo_off" role="presentation"><span id="cke_10_label" class="cke_combo_label">Font</span><a class="cke_combo_button" title="Font Name" tabindex="-1" href="javascript:void(&#39;Font Name&#39;)" hidefocus="true" role="button" aria-labelledby="cke_10_label" aria-haspopup="true" onkeydown="return CKEDITOR.tools.callFunction(6,event,this);" onfocus="return CKEDITOR.tools.callFunction(7,event);" onclick="CKEDITOR.tools.callFunction(5,this);return false;"><span id="cke_10_text" class="cke_combo_text cke_combo_inlinelabel">Font</span><span class="cke_combo_open"><span class="cke_combo_arrow"></span></span></a></span><span id="cke_11" class="cke_combo cke_combo__fontsize cke_combo_off" role="presentation"><span id="cke_11_label" class="cke_combo_label">Size</span><a class="cke_combo_button" title="Font Size" tabindex="-1" href="javascript:void(&#39;Font Size&#39;)" hidefocus="true" role="button" aria-labelledby="cke_11_label" aria-haspopup="true" onkeydown="return CKEDITOR.tools.callFunction(9,event,this);" onfocus="return CKEDITOR.tools.callFunction(10,event);" onclick="CKEDITOR.tools.callFunction(8,this);return false;"><span id="cke_11_text" class="cke_combo_text cke_combo_inlinelabel">Size</span><span class="cke_combo_open"><span class="cke_combo_arrow"></span></span></a></span><span class="cke_toolgroup" role="presentation"><a id="cke_13" class="cke_button cke_button__textcolor cke_button_off" href="javascript:void(&#39;Text Color&#39;)" title="Text Color" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_13_label" aria-haspopup="true" onkeydown="return CKEDITOR.tools.callFunction(11,event);" onfocus="return CKEDITOR.tools.callFunction(12,event);" onclick="CKEDITOR.tools.callFunction(13,this);return false;"><span class="cke_button_icon cke_button__textcolor_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -408px;background-size:auto;">&nbsp;</span><span id="cke_13_label" class="cke_button_label cke_button__textcolor_label" aria-hidden="false">Text Color</span><span class="cke_button_arrow"></span></a></span><span class="cke_toolbar_end"></span></span><span id="cke_14" class="cke_toolbar" aria-labelledby="cke_14_label" role="toolbar"><span id="cke_14_label" class="cke_voice_label">morestyles</span><span class="cke_toolbar_start"></span><span class="cke_toolgroup" role="presentation"><a id="cke_15" class="cke_button cke_button__bold cke_button_off" href="javascript:void(&#39;Bold&#39;)" title="Bold" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_15_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(14,event);" onfocus="return CKEDITOR.tools.callFunction(15,event);" onclick="CKEDITOR.tools.callFunction(16,this);return false;"><span class="cke_button_icon cke_button__bold_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -24px;background-size:auto;">&nbsp;</span><span id="cke_15_label" class="cke_button_label cke_button__bold_label" aria-hidden="false">Bold</span></a><a id="cke_16" class="cke_button cke_button__italic cke_button_off" href="javascript:void(&#39;Italic&#39;)" title="Italic" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_16_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(17,event);" onfocus="return CKEDITOR.tools.callFunction(18,event);" onclick="CKEDITOR.tools.callFunction(19,this);return false;"><span class="cke_button_icon cke_button__italic_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -48px;background-size:auto;">&nbsp;</span><span id="cke_16_label" class="cke_button_label cke_button__italic_label" aria-hidden="false">Italic</span></a><a id="cke_17" class="cke_button cke_button__underline cke_button_off" href="javascript:void(&#39;Underline&#39;)" title="Underline" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_17_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(20,event);" onfocus="return CKEDITOR.tools.callFunction(21,event);" onclick="CKEDITOR.tools.callFunction(22,this);return false;"><span class="cke_button_icon cke_button__underline_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -144px;background-size:auto;">&nbsp;</span><span id="cke_17_label" class="cke_button_label cke_button__underline_label" aria-hidden="false">Underline</span></a><a id="cke_18" class="cke_button cke_button__strike cke_button_off" href="javascript:void(&#39;Strikethrough&#39;)" title="Strikethrough" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_18_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(23,event);" onfocus="return CKEDITOR.tools.callFunction(24,event);" onclick="CKEDITOR.tools.callFunction(25,this);return false;"><span class="cke_button_icon cke_button__strike_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -72px;background-size:auto;">&nbsp;</span><span id="cke_18_label" class="cke_button_label cke_button__strike_label" aria-hidden="false">Strikethrough</span></a><a id="cke_19" class="cke_button cke_button__subscript cke_button_off" href="javascript:void(&#39;Subscript&#39;)" title="Subscript" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_19_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(26,event);" onfocus="return CKEDITOR.tools.callFunction(27,event);" onclick="CKEDITOR.tools.callFunction(28,this);return false;"><span class="cke_button_icon cke_button__subscript_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -96px;background-size:auto;">&nbsp;</span><span id="cke_19_label" class="cke_button_label cke_button__subscript_label" aria-hidden="false">Subscript</span></a><a id="cke_20" class="cke_button cke_button__superscript cke_button_off" href="javascript:void(&#39;Superscript&#39;)" title="Superscript" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_20_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(29,event);" onfocus="return CKEDITOR.tools.callFunction(30,event);" onclick="CKEDITOR.tools.callFunction(31,this);return false;"><span class="cke_button_icon cke_button__superscript_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -120px;background-size:auto;">&nbsp;</span><span id="cke_20_label" class="cke_button_label cke_button__superscript_label" aria-hidden="false">Superscript</span></a><span class="cke_toolbar_separator" role="separator"></span><a id="cke_21" class="cke_button cke_button__removeformat cke_button_off" href="javascript:void(&#39;Remove Format&#39;)" title="Remove Format" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_21_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(32,event);" onfocus="return CKEDITOR.tools.callFunction(33,event);" onclick="CKEDITOR.tools.callFunction(34,this);return false;"><span class="cke_button_icon cke_button__removeformat_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1680px;background-size:auto;">&nbsp;</span><span id="cke_21_label" class="cke_button_label cke_button__removeformat_label" aria-hidden="false">Remove Format</span></a></span><span class="cke_toolbar_end"></span></span><span class="cke_toolbar_break"></span><span id="cke_22" class="cke_toolbar" aria-labelledby="cke_22_label" role="toolbar"><span id="cke_22_label" class="cke_voice_label">Paragraph</span><span class="cke_toolbar_start"></span><span class="cke_toolgroup" role="presentation"><a id="cke_23" class="cke_button cke_button__numberedlist cke_button_off" href="javascript:void(&#39;Insert/Remove Numbered List&#39;)" title="Insert/Remove Numbered List" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_23_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(35,event);" onfocus="return CKEDITOR.tools.callFunction(36,event);" onclick="CKEDITOR.tools.callFunction(37,this);return false;"><span class="cke_button_icon cke_button__numberedlist_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1368px;background-size:auto;">&nbsp;</span><span id="cke_23_label" class="cke_button_label cke_button__numberedlist_label" aria-hidden="false">Insert/Remove Numbered List</span></a><a id="cke_24" class="cke_button cke_button__bulletedlist cke_button_off" href="javascript:void(&#39;Insert/Remove Bulleted List&#39;)" title="Insert/Remove Bulleted List" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_24_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(38,event);" onfocus="return CKEDITOR.tools.callFunction(39,event);" onclick="CKEDITOR.tools.callFunction(40,this);return false;"><span class="cke_button_icon cke_button__bulletedlist_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1320px;background-size:auto;">&nbsp;</span><span id="cke_24_label" class="cke_button_label cke_button__bulletedlist_label" aria-hidden="false">Insert/Remove Bulleted List</span></a></span><span class="cke_toolbar_end"></span></span><span id="cke_25" class="cke_toolbar" aria-labelledby="cke_25_label" role="toolbar"><span id="cke_25_label" class="cke_voice_label">Links</span><span class="cke_toolbar_start"></span><span class="cke_toolgroup" role="presentation"><a id="cke_26" class="cke_button cke_button__table cke_button_off" href="javascript:void(&#39;Table&#39;)" title="Table" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_26_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(41,event);" onfocus="return CKEDITOR.tools.callFunction(42,event);" onclick="CKEDITOR.tools.callFunction(43,this);return false;"><span class="cke_button_icon cke_button__table_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1896px;background-size:auto;">&nbsp;</span><span id="cke_26_label" class="cke_button_label cke_button__table_label" aria-hidden="false">Table</span></a><a id="cke_27" class="cke_button cke_button__simpleimage cke_button_off" href="javascript:void(&#39;Upload Image&#39;)" title="Upload Image" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_27_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(44,event);" onfocus="return CKEDITOR.tools.callFunction(45,event);" onclick="CKEDITOR.tools.callFunction(46,this);return false;"><span class="cke_button_icon cke_button__simpleimage_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/simpleimage/icons/simpleimage.png?t=2026-6-29a&#39;);background-position:0 0px;background-size:16px;">&nbsp;</span><span id="cke_27_label" class="cke_button_label cke_button__simpleimage_label" aria-hidden="false">Upload Image</span></a><a id="cke_28" class="cke_button cke_button__tdxeditimagealt cke_button_disabled " href="javascript:void(&#39;Edit image description&#39;)" title="Edit image description" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_28_label" aria-haspopup="false" aria-disabled="true" onkeydown="return CKEDITOR.tools.callFunction(47,event);" onfocus="return CKEDITOR.tools.callFunction(48,event);" onclick="CKEDITOR.tools.callFunction(49,this);return false;"><span class="cke_button_icon cke_button__tdxeditimagealt_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/uploadimage/icons/tdxeditimagealt.png?t=2026-6-29a&#39;);background-position:0 undefinedpx;background-size:16px;">&nbsp;</span><span id="cke_28_label" class="cke_button_label cke_button__tdxeditimagealt_label" aria-hidden="false">Edit image description</span></a><a id="cke_29" class="cke_button cke_button__link cke_button_off" href="javascript:void(&#39;Link&#39;)" title="Link" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_29_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(50,event);" onfocus="return CKEDITOR.tools.callFunction(51,event);" onclick="CKEDITOR.tools.callFunction(52,this);return false;"><span class="cke_button_icon cke_button__link_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1248px;background-size:auto;">&nbsp;</span><span id="cke_29_label" class="cke_button_label cke_button__link_label" aria-hidden="false">Link</span></a><a id="cke_30" class="cke_button cke_button__unlink cke_button_disabled " href="javascript:void(&#39;Unlink&#39;)" title="Unlink" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_30_label" aria-haspopup="false" aria-disabled="true" onkeydown="return CKEDITOR.tools.callFunction(53,event);" onfocus="return CKEDITOR.tools.callFunction(54,event);" onclick="CKEDITOR.tools.callFunction(55,this);return false;"><span class="cke_button_icon cke_button__unlink_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/icons.png?t=2026-6-29a&#39;);background-position:0 -1272px;background-size:auto;">&nbsp;</span><span id="cke_30_label" class="cke_button_label cke_button__unlink_label" aria-hidden="false">Unlink</span></a></span><span class="cke_toolbar_end"></span></span><span id="cke_31" class="cke_toolbar" aria-labelledby="cke_31_label" role="toolbar"><span id="cke_31_label" class="cke_voice_label">revise</span><span class="cke_toolbar_start"></span><span class="cke_toolgroup" role="presentation"><a id="cke_32" class="cke_button cke_button__revisetext cke_button_off" href="javascript:void(&#39;Revise with AI&#39;)" title="Revise with AI" tabindex="-1" hidefocus="true" role="button" aria-labelledby="cke_32_label" aria-haspopup="false" onkeydown="return CKEDITOR.tools.callFunction(56,event);" onfocus="return CKEDITOR.tools.callFunction(57,event);" onclick="CKEDITOR.tools.callFunction(58,this);return false;"><span class="cke_button_icon cke_button__revisetext_icon" style="background-image:url(&#39;https://ubuffalo.teamdynamix.com/TDPortal/Content/ckeditor/plugins/revisetext/icons/revisetext.png?t=2026-6-29a&#39;);background-position:0 0px;background-size:16px;">&nbsp;</span><span id="cke_32_label" class="cke_button_label cke_button__revisetext_label" aria-hidden="false">Revise with AI</span></a></span><span class="cke_toolbar_end"></span></span></span></span><div id="cke_1_contents" class="cke_contents cke_reset" role="presentation" style="height: 352.078px;"><span id="cke_36" class="cke_voice_label">Press ALT 0 for help</span><iframe src="./saved_resource.html" frameborder="0" class="cke_wysiwyg_frame cke_reset" title="Comments" aria-describedby="cke_36" tabindex="0" allowtransparency="true" style="width: 100%; height: 100%;"></iframe></div><span id="cke_1_bottom" class="cke_bottom cke_reset_all" role="presentation" style="user-select: none;"><span id="cke_1_resizer" class="cke_resizer cke_resizer_ltr" title="Resize" onmousedown="CKEDITOR.tools.callFunction(0, event)">◢</span></span></div></div>
+  <input id="Comments_EditorKey" name="Comments.EditorKey" type="hidden" value="00000000-0000-0000-0000-000000000000">
+</div>
+
+
+
+
+              </div>
+            </div>
+            <div>
+              <span class="field-validation-valid" data-valmsg-for="Comments.Content" data-valmsg-replace="true"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="control-label" for="s2id_autogen5" id="select2-label-6">Notify</label>
+            <div class="tdx-lookup-group">
+              <div class="select2-container select2-container-multi form-control" id="s2id_NotificationEmails"><ul class="select2-choices">  <li class="select2-search-choice">    <div>Test Responsible (Responsible)</div>    <a href="javascript:;" class="select2-search-choice-close" tabindex="-1" role="button" aria-label="Remove Test Responsible (Responsible)"></a></li><li class="select2-search-choice">    <div>NCS - Network &amp; Voice Install &amp; Repair (Responsible Group)</div>    <a href="javascript:;" class="select2-search-choice-close" tabindex="-1" role="button" aria-label="Remove NCS - Network &amp; Voice Install &amp; Repair (Responsible Group)"></a></li><li class="select2-search-choice">    <div>Test Requestor (Requestor)</div>    <a href="javascript:;" class="select2-search-choice-close" tabindex="-1" role="button" aria-label="Remove Test Requestor (Requestor)"></a></li><li class="select2-search-choice">    <div>Test Creator (Creator)</div>    <a href="javascript:;" class="select2-search-choice-close" tabindex="-1" role="button" aria-label="Remove Test Creator (Creator)"></a></li><li class="select2-search-field">        <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="false" aria-autocomplete="list" aria-describedby="s2id_NotificationEmails_sr_instructions" id="s2id_autogen5" style="width: 22px;" placeholder=""><span id="s2id_NotificationEmails_sr_instructions" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Press LEFT and RIGHT arrow keys to select an item for removal and use the BACKSPACE to remove the selection.</span>  </li></ul><div class="select2-drop select2-drop-multi select2-display-none">   <ul class="select2-results">   <li class="select2-no-results">No matches found</li></ul></div></div><select class="form-control" id="NotificationEmails" multiple="multiple" name="NotificationEmails" placeholder="Notify..." tabindex="-1" aria-labelledby="select2-label-6" style="display: none;"><option selected="selected" value="{(Test Responsible),(testuser@example.edu)}">Test Responsible (Responsible)</option>
+<option selected="selected" value="69">NCS - Network &amp; Voice Install &amp; Repair (Responsible Group)</option>
+<option selected="selected" value="{(Test Requestor),(testuser@example.edu)}" data-requestor="true">Test Requestor (Requestor)</option>
+<option selected="selected" value="{(Test Creator),(testuser@example.edu)}">Test Creator (Creator)</option>
+</select>
+              <span class="tdx-lookup-button-group" style="vertical-align: top;">
+                <button type="button" class="btn btn-default js-select-all" data-toggle="tooltip" data-placement="top" title="Notify All Users">
+                  <span class="fa-solid fa-fw fa-nopad fa-users blue" aria-hidden="true"></span>
+                  <span class="sr-only">Notify All Users</span>
+                </button>
+                <button class="btn btn-default js-remove-all" title="Remove All" type="button">
+                  <span class="fa-solid fa-fw fa-nopad fa-xmark " aria-hidden="true"></span>
+                  <span class="sr-only">Remove All</span>
+                </button>
+              </span>
+            </div>
+
+            <span class="field-validation-valid" data-valmsg-for="NotificationEmails" data-valmsg-replace="true"></span>
+          </div>
+
+          <div class="js-comment-monitor alert alert-danger hidden" style="display: none;"></div>
+
+          <div class="js-notify-monitor alert alert-warning hidden" style="display: none;"></div>
+
+          <div id="divOtherPeople" class="form-group">
+            <label class="control-label" for="OtherPeopleIds_select" id="OtherPeopleIds_select_label">Notify Other People</label>
+            <div>
+              <div class="tdx-lookup-group"><input value="" aria-label="" data-mininputlength="2" data-multiple="true" data-paged="false" data-placeholdertext="Notify..." data-selectlookup="true" data-wscontenttype="application/json; charset=utf-8" data-wssearchparam="tag" data-wsurl="/TDNext/Services/JSON/UsersLookupService.asmx/GetCustomerItems" data-wsverb="POST" id="OtherPeopleIds" name="OtherPeopleIds" type="hidden" placeholder="Notify..."><span class="k-multiselect k-input k-input-solid k-input-md k-rounded-md" unselectable="on" style=""><select aria-label="" id="OtherPeopleIds_select" name="OtherPeopleIds_select" data-role="multiselect" multiple="multiple" style="display: none;"></select><div class="k-input-values"><div unselectable="on" class="k-selection-multiple k-chip-list k-chip-list-md" id="OtherPeopleIds_select_taglist" role="listbox" aria-orientation="horizontal" aria-label="Selected values for Notify Other People"></div><input class="k-input-inner k-readonly" data-validate="false" autocomplete="off" title="" tabindex="0" role="combobox" aria-expanded="false" aria-controls="OtherPeopleIds_select_listbox" aria-autocomplete="list" aria-describedby="OtherPeopleIds_select_taglist instruction-OtherPeopleIds_select OtherPeopleIds_minInputMsg_sr" aria-labelledby="OtherPeopleIds_select_label" aria-disabled="false" aria-readonly="false" placeholder="Notify..."><span id="OtherPeopleIds_minInputMsg_sr" class="sr-only">Please enter 2 or more characters</span><div id="instruction-OtherPeopleIds_select" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Press LEFT and RIGHT arrow keys to navigate selected items. Press DELETE or BACKSPACE to remove the selected item.</div></div><span class="k-icon k-i-loading k-input-loading-icon k-hidden"></span><span style="font-family: &quot;DM Sans&quot;, sans-serif; font-size: 14px; font-stretch: 100%; font-style: normal; font-weight: 500; letter-spacing: normal; text-transform: none; line-height: 27px; position: absolute; visibility: hidden; top: -3333px; left: -3333px;"></span></span><span class="tdx-lookup-button-group "><a class="btn-default" data-buttontarget="OtherPeopleIds" data-lookupaction="select" data-lookupurl="/TDNext/Apps/Shared/CustomerLookup.aspx" data-windowurl="/TDNext/kendo/kendowindow" href="javascript:void(0);" id="OtherPeopleIds_lookup" role="button" title="Lookup Other People" type="button"><span class="fa fa-fw fa-nopad fa-search" aria-hidden="true"></span><span class="sr-only">Lookup Other People</span></a><a class="btn-default" data-buttontarget="OtherPeopleIds" data-lookupaction="clear" href="javascript:void(0);" id="OtherPeopleIds_clear" role="button" title="Clear Other People" type="button"><span class="fa fa-thin fa-nopad fa-times " aria-hidden="true"></span><span class="sr-only">Clear Other People</span></a></span>
+</div>
+            </div>
+            <input id="OtherPeopleJson" name="OtherPeopleJson" type="hidden" value="[]">
+          </div>
+
+          <div id="divOtherEmailAddresses" class="form-group">
+            <label class="control-label" for="OtherEmailAddresses">Other Email Addresses</label><a href="https://ubuffalo.teamdynamix.com/TDNext/Apps/31/Tickets/Update?TicketID=100000#divOtherEmailAddressesHelp" data-toggle="tooltip" data-html="true" role="button" title="" class="js-help js-help--hidden gutter-left-xs" aria-label="Show Help for Other Email Addresses" data-original-title="
+              This is a comma-separated list of the other email addresses who will receive notifications
+              as necessary.
+            "><span class="fa-solid fa-question-circle" aria-hidden="true"></span></a>
+            <div class="help-block tooltip" aria-live="polite" aria-atomic="true" id="divOtherEmailAddressesHelp">
+              This is a comma-separated list of the other email addresses who will receive notifications
+              as necessary.
+            </div>
+            <div>
+              <input class="form-control" id="OtherEmailAddresses" name="OtherEmailAddresses" type="text" value="">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="control-label" for="AttachmentIds_select" id="AttachmentIds_select_label">Attachment(s)</label>
+              <small>(maximum of 6.50 MB can be sent in notifications)</small>
+            <div>
+              <div class="tdx-lookup-group"><input value="" aria-label="" data-multiple="true" data-paged="false" data-selectlookup="true" data-wscontenttype="text/plain; charset=utf-8" data-wssearchparam="text" data-wsurl="/TDNext/Apps/31/Tickets/100000/AttachmentLookup" data-wsverb="GET" id="AttachmentIds" name="AttachmentIds" type="hidden" placeholder="Start typing..."><span class="k-multiselect k-input k-input-solid k-input-md k-rounded-md" unselectable="on" style=""><select aria-label="" id="AttachmentIds_select" name="AttachmentIds_select" data-role="multiselect" multiple="multiple" style="display: none;"></select><div class="k-input-values"><div unselectable="on" class="k-selection-multiple k-chip-list k-chip-list-md" id="AttachmentIds_select_taglist" role="listbox" aria-orientation="horizontal" aria-label="Selected values for Attachment(s)"></div><input class="k-input-inner k-readonly" data-validate="false" autocomplete="off" title="" tabindex="0" role="combobox" aria-expanded="false" aria-controls="AttachmentIds_select_listbox" aria-autocomplete="list" aria-describedby="AttachmentIds_select_taglist instruction-AttachmentIds_select" aria-labelledby="AttachmentIds_select_label" aria-disabled="false" aria-readonly="false" aria-busy="false" placeholder="Start typing..."><div id="instruction-AttachmentIds_select" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Press LEFT and RIGHT arrow keys to navigate selected items. Press DELETE or BACKSPACE to remove the selected item.</div></div><span class="k-icon k-i-loading k-input-loading-icon k-hidden"></span><span style="font-family: &quot;DM Sans&quot;, sans-serif; font-size: 14px; font-stretch: 100%; font-style: normal; font-weight: 500; letter-spacing: normal; text-transform: none; line-height: 27px; position: absolute; visibility: hidden; top: -3333px; left: -3333px;"></span></span><span class="tdx-lookup-button-group "><a class="btn-default" data-buttontarget="AttachmentIds" data-lookupaction="select" data-lookupurl="/TDNext/Apps/Shared/AttachmentLookupMulti.aspx?ItemComponent=9&amp;ItemID=100000" data-windowurl="/TDNext/kendo/kendowindow" href="javascript:void(0);" id="AttachmentIds_lookup" role="button" title="Lookup Attachments" type="button"><span class="fa fa-fw fa-nopad fa-search" aria-hidden="true"></span><span class="sr-only">Lookup Attachments</span></a><a class="btn-default" data-buttontarget="AttachmentIds" data-lookupaction="clear" href="javascript:void(0);" id="AttachmentIds_clear" role="button" title="Clear Attachments" type="button"><span class="fa fa-thin fa-nopad fa-times " aria-hidden="true"></span><span class="sr-only">Clear Attachments</span></a></span>
+</div>
+            </div>
+          </div>
+
+            <fieldset>
+              <legend class="sr-only">Associate Articles?</legend>
+
+              <div class="form-group">
+                <span class="control-label">
+                  Knowledge Base Article
+                </span>
+                <div>
+                  <label class="radio-inline" for="noAssociation">
+                    <input checked="checked" data-val="true" data-val-number="The field Knowledge Base Article must be a number." data-val-required="The Knowledge Base Article field is required." id="noAssociation" name="KnowledgeBaseArticleOption" type="radio" value="0">
+                    No associated article
+                  </label>
+                  <label class="radio-inline" for="existingArticle">
+                    <input id="existingArticle" name="KnowledgeBaseArticleOption" type="radio" value="1">
+                    Existing article
+                  </label>
+                    <label class="radio-inline" for="newArticle">
+                      <input id="newArticle" name="KnowledgeBaseArticleOption" type="radio" value="2">
+                      Create new article
+                    </label>
+                </div>
+              </div>
+            </fieldset>
+            <div class="js-existing-article" style="display: none;">
+
+
+
+<div class="form-group" data-fieldid="1237" data-fieldtype="knowledge_base_article" id="attribute1237-grp"><label class="control-label" for="ArticleShortcutCompositeID">Knowledge Base Article</label><div class="help-block collapse" id="attribute1237-help">The article associated with the ticket.</div>                <div>
+                  <div class="tdx-lookup-group"><input aria-label="" id="attribute1237_reset" name="ArticleShortcutCompositeID_reset" type="hidden" value=""><span class="k-input k-combobox js-article-lookup k-input-solid k-input-md k-rounded-md" style=""><input name="ArticleShortcutCompositeID_input" class="k-input-inner js-article-lookup" type="text" autocomplete="off" title="" role="combobox" aria-expanded="false" style="" data-skip="true" placeholder="Start typing..." tabindex="0" aria-disabled="false" aria-readonly="false" aria-autocomplete="list" aria-controls="attribute1237_listbox" aria-describedby="instruction-attribute1237 attribute1237_minInputMsg_sr"><span id="attribute1237_minInputMsg_sr" class="sr-only">Please enter 2 or more characters</span><div id="instruction-attribute1237" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Use the clear button to remove the selection.</div><button type="button" class="k-input-button k-button k-button-md k-button-solid k-button-solid-base k-icon-button" aria-label="expand combobox" role="button" tabindex="-1"><span class="k-icon k-svg-icon k-svg-i-caret-alt-down k-button-icon" aria-hidden="true"><svg viewBox="0 0 512 512" focusable="false" xmlns="http://www.w3.org/2000/svg"><path d="M256 352 128 160h256z"></path></svg></span></button><input value="" aria-label="" class="js-article-lookup" data-mininputlength="2" data-multiple="false" data-paged="false" data-selectlookup="true" data-wscontenttype="text/plain; charset=utf-8" data-wssearchparam="text" data-wsurl="/TDNext/Apps/Shared/KB/Autocomplete?clientAppId=42&amp;includeShortcuts=True" data-wsverb="GET" id="attribute1237" name="ArticleShortcutCompositeID" type="text" data-role="combobox" aria-disabled="false" aria-readonly="false" style="display: none;"></span><span class="tdx-lookup-button-group "><a class="btn-default" data-buttontarget="attribute1237" data-lookupaction="select" data-lookupurl="/TDNext/Apps/Shared/KB/LookupSingle?clientAppId=42&amp;includeShortcuts=True&amp;includeAllClientApps=True" data-windowurl="/TDNext/kendo/kendowindow" href="javascript:void(0);" id="attribute1237_lookup" role="button" title="Lookup KB Article" type="button"><span class="fa fa-fw fa-nopad fa-search" aria-hidden="true"></span><span class="sr-only">Lookup KB Article</span></a><a class="btn-default" data-buttontarget="attribute1237" data-lookupaction="clear" href="javascript:void(0);" id="attribute1237_clear" role="button" title="Clear KB Article" type="button"><span class="fa fa-thin fa-nopad fa-times " aria-hidden="true"></span><span class="sr-only">Clear KB Article</span></a></span>
+</div>
+                </div>
+<span class="field-validation-valid" data-valmsg-for="ArticleShortcutCompositeID" data-valmsg-replace="true"></span></div>            </div>
+            <div id="divRelevantArticles"></div>
+              <div class="js-new-article" style="display: none;">
+                <div class="form-group">
+                  <label class="control-label" for="NewArticleCategoryId" id="NewArticleCategoryId_label">KB Article Category</label>
+                  <div>
+                    <div class="tdx-lookup-group"><input aria-label="" id="NewArticleCategoryId_reset" name="NewArticleCategoryId_reset" type="hidden" value=""><span class="k-input k-combobox k-input-solid k-input-md k-rounded-md" style=""><input name="NewArticleCategoryId_input" class="k-input-inner" type="text" autocomplete="off" title="" role="combobox" aria-expanded="false" style="" data-skip="true" placeholder="Start typing..." tabindex="0" aria-disabled="false" aria-readonly="false" aria-autocomplete="list" aria-controls="NewArticleCategoryId_listbox" aria-labelledby="NewArticleCategoryId_label" id="NewArticleCategoryId_input" aria-describedby="instruction-NewArticleCategoryId"><div id="instruction-NewArticleCategoryId" class="sr-only">Start typing to lookup. Use the UP and DOWN arrow keys to review results. Press ENTER to select. Use the clear button to remove the selection.</div><button type="button" class="k-input-button k-button k-button-md k-button-solid k-button-solid-base k-icon-button" aria-label="expand combobox" role="button" tabindex="-1"><span class="k-icon k-svg-icon k-svg-i-caret-alt-down k-button-icon" aria-hidden="true"><svg viewBox="0 0 512 512" focusable="false" xmlns="http://www.w3.org/2000/svg"><path d="M256 352 128 160h256z"></path></svg></span></button><input value="" aria-label="" data-multiple="false" data-paged="false" data-selectlookup="true" data-val="true" data-val-number="The field KB Article Category must be a number." data-wscontenttype="application/json; charset=utf-8" data-wssearchparam="tag" data-wsurl="/TDNext/Services/JSON/KBCategoryLookupService.asmx/GetItems?instanceID=42" data-wsverb="POST" id="NewArticleCategoryId" name="NewArticleCategoryId" type="text" data-role="combobox" aria-disabled="false" aria-readonly="false" style="display: none;"></span><span class="tdx-lookup-button-group "><a class="btn-default" data-buttontarget="NewArticleCategoryId" data-lookupaction="select" data-lookupurl="/TDNext/Apps/Shared/KBCategoryLookup.aspx?clientAppID=42" data-windowurl="/TDNext/kendo/kendowindow" href="javascript:void(0);" id="NewArticleCategoryId_lookup" role="button" title="Lookup KB Article Category" type="button"><span class="fa fa-fw fa-nopad fa-search" aria-hidden="true"></span><span class="sr-only">Lookup KB Article Category</span></a><a class="btn-default" data-buttontarget="NewArticleCategoryId" data-lookupaction="clear" href="javascript:void(0);" id="NewArticleCategoryId_clear" role="button" title="Clear KB Article Category" type="button"><span class="fa fa-thin fa-nopad fa-times " aria-hidden="true"></span><span class="sr-only">Clear KB Article Category</span></a></span>
+</div>
+                  </div>
+                  <span class="field-validation-valid" data-valmsg-for="NewArticleCategoryId" data-valmsg-replace="true"></span>
+                </div>
+
+                  <div class="form-group">
+                    <label class="control-label" for="NewArticleStatusId">KB Article Status</label>
+                    <select class="form-control" data-val="true" id="NewArticleStatusId" name="NewArticleStatusId"><option value=""></option>
+<option selected="selected" value="1">Not Submitted</option>
+<option value="2">Submitted</option>
+<option value="3">Approved</option>
+<option value="4">Rejected</option>
+<option value="5">Archived</option>
+</select>
+                    <span class="field-validation-valid" data-valmsg-for="NewArticleStatusId" data-valmsg-replace="true"></span>
+                  </div>
+
+                <div class="form-group">
+                  <label class="control-label" for="s2id_autogen1" id="select2-label-1">KB Article Template</label>
+                  <div class="select2-container form-control js-kb-template-options" id="s2id_KBArticleTemplateOption"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-1"><span class="sr-only">No selection</span></span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" id="s2id_autogen1" aria-describedby="select2-chosen-1"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen1_search" class="select2-offscreen">KB Article Template</label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-1" id="s2id_autogen1_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" aria-label="options" id="select2-results-1">   </ul></div></div><select class="form-control js-kb-template-options" data-val="true" data-val-number="The field KB Article Template must be a number." data-val-required="The KB Article Template field is required." id="KBArticleTemplateOption" name="KBArticleTemplateOption" tabindex="-1" aria-labelledby="select2-label-1" style="display: none;"><option selected="selected" value="0"></option>
+<optgroup label="ITCS FS Templates">
+<option value="3">ITCS Field Services Main KB Template</option>
+</optgroup>
+<optgroup label="UBIT HC Templates">
+<option value="7">HC Service Page Template</option>
+<option value="8">HC Tool Template</option>
+</optgroup>
+</select>
+                </div>
+              </div>
+
+          
+
+
+
+<div class="form-group js-help-ignore required" data-fieldid="2706" data-fieldtype="dropdown" id="attribute2706-grp">      <label class="control-label" for="s2id_autogen2" id="select2-label-2">Affiliation</label>
+    <div class="help-block collapse wrap-text" id="attribute2706-help"></div>
+
+
+
+
+<div class="js-ca">
+<div class="select2-container select2-allowclear form-control js-select2 k-input" id="s2id_attribute2706"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-2">Alumnus</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" id="s2id_autogen2" aria-describedby="select2-chosen-2"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen2_search" class="select2-offscreen">
+        Affiliation
+        
+      </label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-2" id="s2id_autogen2_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" aria-label="options" id="select2-results-2">   </ul></div></div><select aria-required="true" class="form-control js-select2 k-input" data-val="true" data-val-required="Affiliation is required." id="attribute2706" name="attribute2706" placeholder="Start typing..." tabindex="-1" aria-labelledby="select2-label-2" style="display: none;"><option data-empty="true"></option>
+<option selected="selected" value="969">Alumnus</option>
+<option value="970">Applicant</option>
+<option value="971">Faculty</option>
+<option value="972">Parent</option>
+<option value="973">Retiree</option>
+<option value="974">Staff</option>
+<option value="975">Student</option>
+<option value="976">Visitor</option>
+<option value="1581">Volunteer</option>
+</select>
+</div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2706" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2445" data-fieldtype="textbox" id="attribute2445-grp">      <label class="control-label" for="attribute2445">UBITName</label>
+    <div class="help-block collapse wrap-text" id="attribute2445-help"></div>
+
+
+
+
+<div class="js-ca">
+<input value="" class="form-control" id="attribute2445" name="attribute2445" placeholder="If unknown, please state so." type="text"></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2445" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2751" data-fieldtype="dropdown" id="attribute2751-grp">      <label class="control-label" for="s2id_autogen3" id="select2-label-3">Device type</label>
+    <div class="help-block collapse wrap-text" id="attribute2751-help"></div>
+
+
+
+
+<div class="js-ca">
+<div class="select2-container form-control js-select2 k-input select2-allowclear" id="s2id_attribute2751"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-3">Desktop</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" id="s2id_autogen3" aria-describedby="select2-chosen-3"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen3_search" class="select2-offscreen">
+        Device type
+        
+      </label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-3" id="s2id_autogen3_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" aria-label="options" id="select2-results-3">   </ul></div></div><select class="form-control js-select2 k-input" id="attribute2751" name="attribute2751" placeholder="Start typing..." tabindex="-1" aria-labelledby="select2-label-3" style="display: none;"><option data-empty="true"></option>
+<option selected="selected" value="1028">Desktop</option>
+<option value="1029">IoT Device</option>
+<option value="1030">Laptop</option>
+<option value="1031">Phone - Android</option>
+<option value="1032">Phone - iPhone</option>
+<option value="1033">Tablet</option>
+<option value="1971">Other</option>
+</select>
+</div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2751" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2455" data-fieldtype="textbox" id="attribute2455-grp">      <label class="control-label" for="attribute2455">MAC Address</label>
+    <div class="help-block collapse wrap-text" id="attribute2455-help"></div>
+
+
+
+
+<div class="js-ca">
+<input value="" class="form-control" id="attribute2455" name="attribute2455" type="text" placeholder=""></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2455" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2757" data-fieldtype="textbox" id="attribute2757-grp">      <label class="control-label" for="attribute2757">IP Address</label>
+    <div class="help-block collapse wrap-text" id="attribute2757-help"></div>
+
+
+
+
+<div class="js-ca">
+<input value="" class="form-control" id="attribute2757" name="attribute2757" type="text" placeholder=""></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2757" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2616" data-fieldtype="dropdown" id="attribute2616-grp">      <label class="control-label" for="s2id_autogen4" id="select2-label-4">Operating System</label>
+    <div class="help-block collapse wrap-text" id="attribute2616-help"></div>
+
+
+
+
+<div class="js-ca">
+<div class="select2-container form-control js-select2 k-input select2-allowclear" id="s2id_attribute2616"><a href="javascript:void(0)" class="select2-choice" tabindex="-1">   <span class="select2-chosen" id="select2-chosen-4">Mac</span><abbr class="select2-search-choice-close"></abbr>   <span class="select2-arrow" role="presentation"><b role="presentation"></b></span></a><input class="select2-focusser select2-offscreen" type="text" aria-haspopup="true" id="s2id_autogen4" aria-describedby="select2-chosen-4"><div class="select2-drop select2-display-none select2-with-searchbox">   <div class="select2-search">       <label for="s2id_autogen4_search" class="select2-offscreen">
+        Operating System
+        
+      </label>       <input type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" class="select2-input" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-owns="select2-results-4" id="s2id_autogen4_search" placeholder="">   </div>   <ul class="select2-results" role="listbox" aria-label="options" id="select2-results-4">   </ul></div></div><select class="form-control js-select2 k-input" id="attribute2616" name="attribute2616" placeholder="Start typing..." tabindex="-1" aria-labelledby="select2-label-4" style="display: none;"><option data-empty="true"></option>
+<option value="871">Android OS (mobile)</option>
+<option value="872">Apple iOS (mobile)</option>
+<option value="873">Linux</option>
+<option selected="selected" value="874">Mac</option>
+<option value="875">Windows</option>
+<option value="1972">Other</option>
+</select>
+</div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2616" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2624" data-fieldtype="textbox" id="attribute2624-grp">      <label class="control-label" for="attribute2624">OS Version</label>
+    <div class="help-block collapse wrap-text" id="attribute2624-help"></div>
+
+
+
+
+<div class="js-ca">
+<input value="" class="form-control" id="attribute2624" name="attribute2624" type="text" placeholder=""></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2624" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="3224" data-fieldtype="textbox" id="attribute3224-grp">      <label class="control-label" for="attribute3224">Asset ID</label>
+    <div class="help-block collapse wrap-text" id="attribute3224-help"></div>
+
+
+
+
+<div class="js-ca">
+<input value="" class="form-control" id="attribute3224" name="attribute3224" type="text" placeholder=""></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute3224" data-valmsg-replace="true"></span>
+</div><div class="form-group js-help-ignore" data-fieldid="2390" data-fieldtype="textarea" id="attribute2390-grp">      <label class="control-label" for="attribute2390">Additional Information</label>
+    <div class="help-block collapse wrap-text" id="attribute2390-help"></div>
+
+
+
+
+<div class="js-ca">
+<textarea value="" class="form-control" cols="20" id="attribute2390" name="attribute2390" rows="2" placeholder=""></textarea></div>
+
+<span class="field-validation-valid" data-valmsg-for="attribute2390" data-valmsg-replace="true"></span>
+</div>    <h2 class="js-other-fields gutter-bottom" style="display: none;">
+      Other Fields
+    </h2>
+
+
+
+
+
+        </div>
+      </div>
+</form>
+</body></html>
