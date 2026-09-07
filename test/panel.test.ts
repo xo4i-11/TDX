@@ -231,6 +231,17 @@ test('the panel can never be dragged off the screen', async () => {
   assert.equal(panelEl.style.left, `${saved.panelX}px`);
 });
 
+test('a size dragged from the corner grip is restored on the next mount', async () => {
+  const area = createMemoryArea();
+  const stores = createStores(area);
+  await stores.settings.patch({ panelW: 420, panelH: 500 });
+
+  const { $ } = await open(loadFixture(), stores);
+  const panelEl = must($<HTMLElement>('.panel'), 'panel missing');
+  assert.equal(panelEl.style.width, '420px');
+  assert.equal(panelEl.style.height, '500px');
+});
+
 test('a header button is a button, not a drag handle', async () => {
   const { $, doc, stores } = await open();
   const view = doc.defaultView;

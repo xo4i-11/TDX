@@ -131,6 +131,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   panel.className = 'panel';
   shadow.append(panel);
 
+  // Decoration only: the resize itself is CSS `resize: both`, and this sits
+  // over Chrome's own grey grip with pointer-events off, so the browser still
+  // owns the drag.
+  const grip = document.createElement('div');
+  grip.className = 'grip';
+  panel.append(grip);
+
   // A persistent DOM node, owned here rather than rebuilt by render()/body().
   // The whole point: render() itself touches storage (stores.settings.get(),
   // then templates()' several more calls) and can fail
@@ -240,6 +247,30 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   }
   const onResize = (): void => keepOnScreen();
   document.defaultView?.addEventListener('resize', onResize);
+
+  /**
+   * Remembers a corner resize. Debounced because ResizeObserver fires on every
+   * frame of the drag and each notification would otherwise be a storage
+   * write; a collapsed panel is the bubble, whose size is the stylesheet's
+   * business, not the technician's.
+   */
+  let sizeTimer: ReturnType<typeof setTimeout> | undefined;
+  // Null where there is no ResizeObserver (jsdom): the corner grip is a CSS
+  // feature of a real browser, and its absence must not stop the panel mounting.
+  const ResizeObserverCtor = document.defaultView?.ResizeObserver;
+  const observer = ResizeObserverCtor ? new ResizeObserverCtor(() => {
+    if (panel.dataset.collapsed === 'true') return;
+    keepOnScreen();
+    clearTimeout(sizeTimer);
+    sizeTimer = setTimeout(() => {
+      stores.settings.patch({ panelW: panel.offsetWidth, panelH: panel.offsetHeight }).catch(() => {
+        // A failed size write is not worth a visible error: the panel is the
+        // size the technician just dragged it to either way, it simply will
+        // not be that size after a reload.
+      });
+    }, 250);
+  }) : null;
+  observer?.observe(panel);
 
   /**
    * Drag by the header. Pointer events, not mouse events: one code path covers
@@ -613,6 +644,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   document.body.append(host);
   await render();
   applyZoom();
+  if (initialSettings.panelW) panel.style.width = `${initialSettings.panelW}px`;
+  if (initialSettings.panelH) panel.style.height = `${initialSettings.panelH}px`;
   if (initialSettings.panelX !== undefined && initialSettings.panelY !== undefined) {
     place(initialSettings.panelX, initialSettings.panelY);
   }
@@ -648,6 +681,8 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     destroy() {
       document.removeEventListener('keydown', onEscape);
       document.defaultView?.removeEventListener('resize', onResize);
+      clearTimeout(sizeTimer);
+      observer?.disconnect();
       // highlightFilled (results.ts) marks controls on the page itself, not
       // inside this panel's shadow root — those dashed outlines must not
       // outlive the panel.

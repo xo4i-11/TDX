@@ -26,6 +26,10 @@ export const PANEL_CSS = `
 
   position: fixed; right: 18px; bottom: 18px; width: 340px;
   display: flex; flex-direction: column;
+  /* The browser's own corner grip: a resizer with no drag maths to get wrong.
+     Needs a non-visible overflow, which the rounded shell wants anyway. */
+  overflow: hidden; resize: both;
+  min-width: 280px; min-height: 150px; max-width: 96vw; max-height: 92vh;
   background: linear-gradient(180deg, #22201ef2, #17161582);
   color: var(--ink);
   border: 1px solid var(--line); border-radius: 18px;
@@ -49,8 +53,21 @@ export const PANEL_CSS = `
   box-shadow: 0 0 0 1px #00000059, 0 1px 0 #ffffff17 inset, 0 34px 70px -18px #000000bf;
 }
 
+/* The grip itself: Chrome paints a grey triangle, so hide it behind our own. */
+.panel::-webkit-resizer { display: none; }
+.grip {
+  position: absolute; right: 2px; bottom: 2px; width: 15px; height: 15px;
+  pointer-events: none; opacity: .35; transition: opacity .15s ease;
+  background:
+    linear-gradient(135deg, transparent 46%, currentColor 46%, currentColor 58%, transparent 58%),
+    linear-gradient(135deg, transparent 70%, currentColor 70%, currentColor 82%, transparent 82%);
+  color: var(--ink);
+}
+.panel:hover .grip { opacity: .7; }
+
 /* Collapsed, the panel is a bubble: one round handle, parked wherever it was left. */
-.panel[data-collapsed="true"] { width: 52px; border-radius: 999px; }
+.panel[data-collapsed="true"] { width: 52px; height: 52px; min-width: 0; min-height: 0; border-radius: 999px; resize: none; }
+.panel[data-collapsed="true"] .grip { display: none; }
 .panel[data-collapsed="true"] .head { border-bottom-color: transparent; padding: 0; height: 50px; justify-content: center; }
 .panel[data-collapsed="true"] .head h1 { display: none; }
 .panel[data-collapsed="true"] button:not([data-collapse]) { display: none; }
@@ -79,7 +96,7 @@ export const PANEL_CSS = `
 
 .body {
   overflow-y: auto; overscroll-behavior: contain;
-  max-height: 68vh; opacity: 1;
+  flex: 1 1 auto; min-height: 0; max-height: 88vh; opacity: 1;
   padding: 13px 14px; display: flex; flex-direction: column; gap: 13px;
   transition: max-height .32s var(--ease), opacity .2s ease, padding .32s var(--ease);
 }
