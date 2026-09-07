@@ -14,28 +14,30 @@ const REQUESTOR: RequestorFields = {
   organization: 'University at Buffalo',
 };
 
-test('ships a blank template plus the three walk-up templates', () => {
-  assert.equal(SHIPPED_TEMPLATES.length, 4);
+test('ships a blank template plus the five walk-up templates', () => {
+  assert.equal(SHIPPED_TEMPLATES.length, 6);
   const names = SHIPPED_TEMPLATES.map((t) => t.name);
-  assert.ok(names.some((n) => /blank/i.test(n)));
-  assert.ok(names.some((n) => /eduroam/i.test(n)));
-  assert.ok(names.some((n) => /password/i.test(n)));
-  assert.ok(names.some((n) => /duo/i.test(n)));
+  assert.ok(names.some((n) => /first time set up eduroam/i.test(n)));
+  assert.ok(names.some((n) => /reconfigure eduroam/i.test(n)));
+  assert.ok(names.some((n) => /reset password/i.test(n)));
+  assert.ok(names.some((n) => /set up duo/i.test(n)));
+  assert.ok(names.some((n) => /duo bypass/i.test(n)));
 });
 
 test('every shipped template ships with no service, because ids are captured not invented', () => {
   for (const t of SHIPPED_TEMPLATES) assert.equal(t.service, null, `${t.name} must not ship a guessed service id`);
 });
 
-test('shipped descriptions are past-tense notes naming what was verified', () => {
-  const eduroam = SHIPPED_TEMPLATES.find((t) => /eduroam/i.test(t.name));
-  assert.ok(eduroam);
-  assert.match(eduroam.descriptionHtml, /confirmed/i);
-  assert.match(eduroam.descriptionHtml, /CAT/);
-  const password = SHIPPED_TEMPLATES.find((t) => /password/i.test(t.name));
-  assert.ok(password);
-  assert.match(password.descriptionHtml, /photo ID/i);
-  assert.match(password.descriptionHtml, /never sees/i);
+// Every walk-up template must name who it was for, their UBITName, and when —
+// that is the whole content of the note, so a template missing one is useless.
+test('every shipped walk-up template records requestor, UBITName, and timestamp', () => {
+  for (const t of SHIPPED_TEMPLATES) {
+    if (t.id === 'blank') continue;
+    assert.match(t.summary, /\{\{ubitName\}\}/, `${t.name} summary must carry the UBITName`);
+    for (const placeholder of ['{{name}}', '{{ubitName}}', '{{time}}', '{{date}}']) {
+      assert.ok(t.descriptionHtml.includes(placeholder), `${t.name} description must carry ${placeholder}`);
+    }
+  }
 });
 
 test('substitute replaces every supported placeholder', () => {
@@ -83,7 +85,7 @@ test('renderTemplate fills summary and description and reports unknowns once', (
   const out = renderTemplate(template, REQUESTOR, { now: new Date('2026-09-04T12:00:00Z') });
   assert.equal(out.summary, 'eduroam setup for duynghie');
   assert.match(out.descriptionHtml, /Anh Duy Nghiem/);
-  assert.match(out.descriptionHtml, /2026-09-04/);
+  assert.match(out.descriptionHtml, /09\/04\/2026/);
   assert.deepEqual(out.unknown, ['oops']);
 });
 
@@ -105,8 +107,19 @@ test('renderTemplate uses the injected clock, not the real one', () => {
   const template: Template = {
     id: 't', name: 'T', summary: '{{date}}', descriptionHtml: '', service: null,
   };
-  const past = renderTemplate(template, REQUESTOR, { now: new Date('1999-01-01T00:00:00Z') });
-  const future = renderTemplate(template, REQUESTOR, { now: new Date('2099-12-31T00:00:00Z') });
-  assert.equal(past.summary, '1999-01-01');
-  assert.equal(future.summary, '2099-12-31');
+  const past = renderTemplate(template, REQUESTOR, { now: new Date('1999-01-01T12:00:00Z') });
+  const future = renderTemplate(template, REQUESTOR, { now: new Date('2099-12-31T12:00:00Z') });
+  assert.equal(past.summary, '01/01/1999');
+  assert.equal(future.summary, '12/31/2099');
+});
+
+// Falsifiability: {{time}} unsupported, or absent from renderTemplate's values,
+// would leave the placeholder literal and land it in `unknown`.
+test('renderTemplate fills {{time}} as a wall clock reading, not an ISO stamp', () => {
+  const template: Template = {
+    id: 't', name: 'T', summary: '{{time}}', descriptionHtml: '', service: null,
+  };
+  const out = renderTemplate(template, REQUESTOR, { now: new Date('2026-09-04T16:30:00Z') });
+  assert.match(out.summary, /^\d{1,2}:\d{2}\s?(AM|PM)$/);
+  assert.deepEqual(out.unknown, []);
 });

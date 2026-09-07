@@ -61,7 +61,7 @@ test('the five fields are written with the right values', async () => {
   assert.equal(row(rows, 'service')?.status, 'filled');
   assert.equal(inputEl(doc, 'attribute789').value, SERVICE.id);
   assert.equal(inputEl(doc, 'attribute789_input').value, SERVICE.text);
-  assert.match(textareaEl(doc, 'attribute138_Content').value, /eduroam CAT/);
+  assert.match(textareaEl(doc, 'attribute138_Content').value, /Set up eduroam for Anh Duy Nghiem \(duynghie\)/);
 });
 
 test('ACCEPTANCE: affiliation is never written', async () => {
