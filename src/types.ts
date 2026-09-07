@@ -1,10 +1,10 @@
 // The shared vocabulary: every data shape that more than one part of the extension passes around.
 
 /** How a control must be written, which decides the adapter that handles it. */
-export type ControlShape = 'text' | 'select' | 'select2' | 'lookup' | 'richtext';
+export type ControlShape = 'text' | 'select' | 'select2' | 'lookup' | 'richtext' | 'checkbox';
 
 /** What a canonical field expects its control to be. Narrower than ControlShape. */
-export type ControlKind = 'text' | 'select' | 'lookup' | 'richtext';
+export type ControlKind = 'text' | 'select' | 'lookup' | 'richtext' | 'checkbox';
 
 /** The outcome of trying to write one field. Never a bare boolean. */
 export type FillStatus = 'filled' | 'preserved' | 'skipped' | 'failed' | 'needs-confirm';

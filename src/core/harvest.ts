@@ -57,7 +57,9 @@ export function harvest(root: Document | Element): Control[] {
     const tag = el.tagName.toLowerCase();
     const type = (el.getAttribute('type') || '').toLowerCase();
     if (tag === 'input' && SKIP_TYPES.has(type)) continue;
-    if (tag === 'input' && (type === 'radio' || type === 'checkbox')) continue;
+    // Radios stay skipped: they are a group sharing one value, and nothing in
+    // either fill set is one. A checkbox is a single boolean control.
+    if (tag === 'input' && type === 'radio') continue;
     // select2 and Kendo both leave decorative inputs in the DOM. They carry no
     // name, so they can never be a real form value.
     if (tag === 'input' && !el.getAttribute('name') && !el.id?.startsWith('attribute')) continue;
@@ -66,6 +68,8 @@ export function harvest(root: Document | Element): Control[] {
     if (tag === 'select') {
       const shape = el.classList.contains('js-select2') ? 'select2' : 'select';
       controls.push(describe(el, doc, { shape }));
+    } else if (tag === 'input' && type === 'checkbox') {
+      controls.push(describe(el, doc, { shape: 'checkbox' }));
     } else if (el.hasAttribute('contenteditable')) {
       // A contenteditable with no CKEditor textarea behind it (none in the
       // fixture, but conceivable elsewhere) — still richtext, just with no

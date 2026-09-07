@@ -14,6 +14,7 @@
 
 import { fillText, fillSelect, readValue } from './text.ts';
 import { fillLookup, readLookup } from './lookup.ts';
+import { fillCheckbox } from './checkbox.ts';
 import { fillRichText, readRichText, type FillRichTextOptions } from './richtext.ts';
 import type { AdapterResult, Control } from '../types.ts';
 
@@ -43,6 +44,10 @@ export async function applyValue(control: Control, value: unknown, ctx: ApplyCon
       const text = 'text' in value && typeof value.text === 'string' ? value.text : undefined;
       return fillLookup(control, { id, text });
     }
+    case 'checkbox': {
+      if (typeof value !== 'boolean') return mismatch('checkbox', 'a boolean', value);
+      return fillCheckbox(control, value);
+    }
     case 'select2':
       // ponytail: detection only. Nothing in the fill set is a select2
       // control, so shipping an untested write path would be surface with
@@ -64,6 +69,11 @@ export function currentValue(control: Control): string {
       return readLookup(control);
     case 'richtext':
       return readRichText(control);
+    case 'checkbox':
+      // Deliberately not the checked state: currentValue feeds the
+      // preserve-versus-overwrite decision, and "this box already has a value"
+      // is meaningless for a boolean — planFill exempts checkboxes outright.
+      return '';
     case 'text':
     case 'select':
     case 'select2':

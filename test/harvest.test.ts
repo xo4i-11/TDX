@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Control } from '../src/types.ts';
-import { loadFixture, loadUnknownFormFixture } from './helpers.ts';
+import { loadFixture, loadUnknownFormFixture, loadUpdateFixture } from './helpers.ts';
 import { harvest } from '../src/core/harvest.ts';
 
 function find(controls: Control[], id: string): Control | undefined {
@@ -91,4 +91,17 @@ test('control keys are unique and stable across two harvests of the same documen
   const b = harvest(doc).map((c) => c.key);
   assert.deepEqual(a, b);
   assert.equal(new Set(a).size, a.length);
+});
+
+test('the private-comment checkbox on the update form is harvested as a checkbox', () => {
+  const control = harvest(loadUpdateFixture()).find((c) => c.id === 'CommentsIsPrivate');
+  assert.ok(control, 'CommentsIsPrivate was not harvested at all');
+  assert.equal(control.shape, 'checkbox');
+});
+
+// Falsifiability: radios stay skipped. The update form has three
+// KnowledgeBaseArticleOption radios that must not become fillable controls.
+test('radios are still skipped', () => {
+  const radios = harvest(loadUpdateFixture()).filter((c) => (c.el as HTMLInputElement).type === 'radio');
+  assert.deepEqual(radios, []);
 });
