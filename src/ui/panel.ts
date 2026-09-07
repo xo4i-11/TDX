@@ -93,6 +93,14 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
   };
 
   const mode = pageMode(document);
+  /**
+   * The live steps textarea. Fill reads it directly: a value set without an
+   * 'input' event — a paste handled by the page, an IME commit, an
+   * autofill — never reaches the listener, and the technician would watch a
+   * box full of text produce "type what you tried". The paste box next door
+   * already re-reads itself in the Parse button for exactly this reason.
+   */
+  let stepsBox: HTMLTextAreaElement | null = null;
   let controls = harvest(document);
   const signature = formSignature(document);
   const learned = await stores.learned.get(signature);
@@ -324,9 +332,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       state.templateId = select.value;
       state.confirmedService = null; // a new template means a new service decision
       state.confirmedOffering = null;
-      // Blunt on purpose: changing template is an explicit act, and
-      // dirty-tracking is state nobody asked for.
-      if (mode === 'resolve') state.steps = (await selectedTemplate()).steps ?? '';
+      // Only pre-fill an empty box. Overwriting would destroy typed work —
+      // and Blank, the default, has no canned steps, so selecting it would
+      // silently erase everything the technician had written.
+      if (mode === 'resolve') {
+        syncSteps();
+        if (!state.steps.trim()) state.steps = (await selectedTemplate()).steps ?? '';
+      }
       return render();
     }));
     el.append(select);
@@ -394,6 +406,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return el;
   }
 
+  /** Pulls the steps box's current text into state, covering a value change that fired no 'input' event. */
+  function syncSteps(): void {
+    if (stepsBox?.isConnected) state.steps = stepsBox.value;
+  }
+
   function stepsSection(): HTMLElement {
     const el = sectionEl('steps', 'What you tried');
     const box = document.createElement('textarea');
@@ -402,6 +419,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     box.placeholder = 'One step per line';
     box.value = state.steps;
     box.addEventListener('input', () => { state.steps = box.value; });
+    stepsBox = box;
     el.append(box, noteEl('One line per bullet. This comment is visible to the client.'));
     return el;
   }
@@ -495,6 +513,7 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
 
     const fill = button('Fill form', async () => {
       // Never fill through the resolution captured at mount — see rescan().
+      syncSteps();
       await rescan();
       const template = await selectedTemplate();
       const suggestion = await serviceSuggestion();

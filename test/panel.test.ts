@@ -575,3 +575,49 @@ test('choosing a template pre-fills the steps box', async () => {
   const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
   assert.match(steps.value, /CAT configuration tool/);
 });
+
+// Falsifiability: this sets the box's value WITHOUT dispatching 'input', the
+// way a paste-and-click or an IME commit can. If Fill trusted only the state
+// the input listener accumulates, steps would arrive empty and the comment
+// row would come back needs-confirm — which is the bug this pins.
+test('Fill reads the steps box live, not just what the input listener caught', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, RESOLVED_CAPTURE);
+  const { $, stores } = await open(doc);
+  await stores.settings.patch({ resolvedCommentHtml: '<p>Hello.</p><p>{{steps}}</p>' });
+
+  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
+  await settle();
+  click(must($('button[data-confirm-capture]'), 'confirm button missing'), doc);
+  await settle();
+
+  // A fresh resolve ticket has an empty comment box: the TDX template was only
+  // loaded so it could be captured. Left full, `comments` preserves — by design.
+  loadEditor(doc, '');
+
+  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  steps.value = 'Restarted the device\nVerified the connection';
+
+  click(must($('button[data-fill]'), 'fill button missing'), doc);
+  await settle();
+
+  const editor = doc.querySelector<HTMLIFrameElement>('iframe')?.contentDocument?.body;
+  assert.match(editor?.innerHTML ?? '', /<li>Restarted the device<\/li>/);
+});
+
+// Falsifiability: without the guard, selecting a template — Blank especially,
+// which has no canned steps — overwrites the box and destroys typed work.
+test('choosing a template never wipes steps the technician typed', async () => {
+  const doc = loadUpdateFixture();
+  const { $ } = await open(doc);
+  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  steps.value = 'Something I typed';
+  steps.dispatchEvent(new doc.defaultView!.Event('input', { bubbles: true }));
+
+  const template = must($<HTMLSelectElement>('select[name="template"]'), 'template select missing');
+  template.value = 'eduroam';
+  change(template, doc);
+  await settle();
+
+  assert.equal(must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing').value, 'Something I typed');
+});
