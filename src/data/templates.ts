@@ -10,10 +10,10 @@
 import type { RequestorFields, Template } from '../types.ts';
 
 /** Placeholder names {{...}} may reference. Anything else is reported as unknown, not substituted. */
-const SUPPORTED = ['name', 'ubitName', 'email', 'personNumber', 'date'];
+const SUPPORTED = ['name', 'ubitName', 'email', 'personNumber', 'date', 'time'];
 const PLACEHOLDER = /\{\{\s*(\w+)\s*\}\}/g;
 
-/** requestorFields, plus the render-time-only `date` placeholder value. */
+/** requestorFields, plus the render-time-only `date` and `time` placeholder values. */
 type SubstituteValues = Record<string, string | null | undefined>;
 
 /** A requestor with every field explicitly null — the base a partial read is merged onto. Lives here so panel.ts can share it rather than keep a second copy. */
@@ -37,35 +37,37 @@ export const SHIPPED_TEMPLATES: Template[] = [
   },
   {
     id: 'eduroam',
-    name: 'Set up eduroam',
-    summary: 'eduroam setup — {{ubitName}}',
-    descriptionHtml: '<p>Walk-in. Set up eduroam for {{name}} ({{ubitName}}) on {{date}}.</p>'
-      + '<ul><li>Removed the stale eduroam profile from the device.</li>'
-      + '<li>Ran the eduroam CAT configuration tool.</li>'
-      + '<li>Signed in with UBITName credentials and accepted the certificate prompt.</li>'
-      + '<li>Confirmed the device pulled an address and reached the internet before they left.</li></ul>',
+    name: 'First Time Set Up Eduroam',
+    summary: 'First Time Set Up Eduroam -- {{ubitName}}',
+    descriptionHtml: '<p>Set up eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    service: null,
+  },
+  {
+    id: 'eduroam-reconfigure',
+    name: 'Reconfigure Eduroam',
+    summary: 'Reconfigure eduroam -- {{ubitName}}',
+    descriptionHtml: '<p>Reconfigure eduroam for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
     service: null,
   },
   {
     id: 'password-reset',
-    name: 'Reset UBITName password',
-    summary: 'UBITName password reset — {{ubitName}}',
-    descriptionHtml: '<p>Walk-in. UBITName password reset for {{name}} ({{ubitName}}) on {{date}}.</p>'
-      + '<ul><li>Photo ID verified in person against the account record.</li>'
-      + '<li>User set the password themselves; staff never sees or handles it.</li>'
-      + '<li>Reminded them to update saved credentials on phones, tablets, and eduroam profiles.</li>'
-      + '<li>Confirmed sign-in before they left.</li></ul>',
+    name: 'Reset Password',
+    summary: 'Reset Password -- {{ubitName}}',
+    descriptionHtml: '<p>Reset password for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
     service: null,
   },
   {
     id: 'duo',
-    name: 'Set up Duo two-step',
-    summary: 'Duo two-step enrollment — {{ubitName}}',
-    descriptionHtml: '<p>Walk-in. Duo two-step enrollment for {{name}} ({{ubitName}}) on {{date}}.</p>'
-      + '<ul><li>Identity verified in person.</li>'
-      + '<li>Duo Mobile installed and the device enrolled.</li>'
-      + '<li>Push notification tested end to end.</li>'
-      + '<li>Backup method discussed so a lost phone does not lock the account out.</li></ul>',
+    name: 'Set Up Duo',
+    summary: 'Set Up Duo -- {{ubitName}}',
+    descriptionHtml: '<p>Set Up Duo for {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
+    service: null,
+  },
+  {
+    id: 'duo-bypass',
+    name: 'Assign Duo Bypass Code',
+    summary: 'Assign Duo Bypass Code -- {{ubitName}}',
+    descriptionHtml: '<p>Assign Duo Bypass Code to {{name}} ({{ubitName}}) at {{time}} on {{date}}</p>',
     service: null,
   },
 ];
@@ -106,7 +108,7 @@ export function renderTemplate(
   requestorFields: RequestorFields = EMPTY_REQUESTOR,
   { now = new Date() }: { now?: Date } = {},
 ): { summary: string; descriptionHtml: string; unknown: string[] } {
-  const values: SubstituteValues = { ...requestorFields, date: formatDate(now) };
+  const values: SubstituteValues = { ...requestorFields, date: formatDate(now), time: formatTime(now) };
   const summary = substitute(template.summary, values);
   const description = substitute(template.descriptionHtml, values, { escape: true });
   return {
@@ -116,8 +118,16 @@ export function renderTemplate(
   };
 }
 
+// Local, not UTC: a walk-up logged at 8pm Eastern belongs to that day and that
+// clock reading, and an ISO/UTC stamp would put it on tomorrow's date.
 function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear()}`;
+}
+
+/** "2:48 PM" — how a technician would write the time on a walk-up note. */
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 
 // ponytail: hand-rolled escape of the five characters that matter in HTML text
