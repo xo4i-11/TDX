@@ -12,12 +12,15 @@ import { renderSettings } from './settings.ts';
 import { harvest } from '../core/harvest.ts';
 import { resolve } from '../core/resolve.ts';
 import { formSignature } from '../core/signature.ts';
+import { pageMode } from '../core/pagemode.ts';
 import { DICTIONARY } from '../core/dictionary.ts';
 import { ID_LINE, parseRequestor } from '../data/parser.ts';
 import { EMPTY_REQUESTOR, SHIPPED_TEMPLATES } from '../data/templates.ts';
 import { retrieve } from '../service/retriever.ts';
 import { runFill } from '../fill/policy.ts';
 import { captureLookup, readLookup } from '../adapters/lookup.ts';
+import { readRichTextHtml } from '../adapters/richtext.ts';
+import { findRedBlocks, toStepsTemplate, type RedBlock } from '../data/resolved.ts';
 import type {
   Bridge, Captured, FillRow, Ranked, RequestorFields, Resolution, Settings, Stores, Template,
 } from '../types.ts';
@@ -66,6 +69,10 @@ interface PanelState {
   /** The Service Offering under confirmedService, captured with it. */
   confirmedOffering: Captured | null;
   rows: FillRow[];
+  /** Resolve mode: the troubleshooting steps box, kept here so a re-render does not wipe it. */
+  steps: string;
+  /** Resolve mode: a capture awaiting confirmation. Never stored until the technician confirms. */
+  capture: { html: string; blocks: RedBlock[]; chosen: number } | null;
   showDiagnostics: boolean;
   showSettings: boolean;
 }
@@ -79,10 +86,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     confirmedService: null,
     confirmedOffering: null,
     rows: [],
+    steps: '',
+    capture: null,
     showDiagnostics: false,
     showSettings: false,
   };
 
+  const mode = pageMode(document);
   let controls = harvest(document);
   const signature = formSignature(document);
   const learned = await stores.learned.get(signature);
@@ -208,7 +218,11 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       return wrap;
     }
 
-    wrap.append(requestorSection(), await templateSection(), await serviceSection(), fillSection(current), resultsSection());
+    if (mode === 'resolve') {
+      wrap.append(requestorSection(), await templateSection(), stepsSection(), await resolvedSection(), fillSection(current), resultsSection());
+    } else {
+      wrap.append(requestorSection(), await templateSection(), await serviceSection(), fillSection(current), resultsSection());
+    }
 
     if (state.showDiagnostics) {
       wrap.append(renderDiagnostics(
@@ -306,10 +320,13 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       if (template.id === state.templateId) option.selected = true;
       select.append(option);
     }
-    select.addEventListener('change', guarded(() => {
+    select.addEventListener('change', guarded(async () => {
       state.templateId = select.value;
       state.confirmedService = null; // a new template means a new service decision
       state.confirmedOffering = null;
+      // Blunt on purpose: changing template is an explicit act, and
+      // dirty-tracking is state nobody asked for.
+      if (mode === 'resolve') state.steps = (await selectedTemplate()).steps ?? '';
       return render();
     }));
     el.append(select);
@@ -377,6 +394,88 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
     return el;
   }
 
+  function stepsSection(): HTMLElement {
+    const el = sectionEl('steps', 'What you tried');
+    const box = document.createElement('textarea');
+    box.name = 'steps';
+    box.setAttribute('aria-label', 'Troubleshooting steps, one per line');
+    box.placeholder = 'One step per line';
+    box.value = state.steps;
+    box.addEventListener('input', () => { state.steps = box.value; });
+    el.append(box, noteEl('One line per bullet. This comment is visible to the client.'));
+    return el;
+  }
+
+  async function resolvedSection(): Promise<HTMLElement> {
+    const el = sectionEl('resolved', 'Resolved template');
+    const current = await stores.settings.get();
+
+    el.append(noteEl(current.resolvedCommentHtml
+      ? 'Captured. Fill substitutes your steps into it.'
+      : 'Not captured yet. On the form pick Templates > ALL > Ticket Resolved, then Capture.'));
+
+    const capture = button('Capture resolved template', () => {
+      const control = resolution.byField.get('comments')?.control;
+      const html = control ? readRichTextHtml(control) : '';
+      if (!html) {
+        setError('Nothing to capture: the comment editor is empty. Pick Templates > ALL > Ticket Resolved on the form first.');
+        return render();
+      }
+      const blocks = findRedBlocks(html, document);
+      if (!blocks.length) {
+        setError('Found no red placeholder text in the comment. Check the template loaded before capturing.');
+        return render();
+      }
+      state.capture = { html, blocks, chosen: 0 };
+      return render();
+    });
+    capture.setAttribute('data-capture-resolved', '');
+    el.append(capture);
+
+    if (state.capture) el.append(capturePreview(state.capture));
+    return el;
+  }
+
+  /** Shows which block will be replaced before anything is stored — the check the red heuristic needs. */
+  function capturePreview(capture: NonNullable<PanelState['capture']>): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'preview';
+    wrap.append(noteEl(capture.blocks.length > 1
+      ? 'Pick the block your steps replace. Everything else in that block is dropped.'
+      : 'This block will be replaced by your steps. Everything else in it is dropped.'));
+
+    for (const block of capture.blocks) {
+      const row = document.createElement('label');
+      const radio = document.createElement('input');
+      radio.type = 'radio';
+      radio.name = 'red-block';
+      radio.checked = block.index === capture.chosen;
+      radio.addEventListener('change', () => { capture.chosen = block.index; });
+      const text = document.createElement('span');
+      text.textContent = block.text;
+      row.append(radio, text);
+      wrap.append(row);
+    }
+
+    const confirm = button('Save captured template', async () => {
+      await stores.settings.patch({
+        resolvedCommentHtml: toStepsTemplate(capture.html, document, capture.chosen),
+      });
+      state.capture = null;
+      return render();
+    }, 'primary');
+    confirm.setAttribute('data-confirm-capture', '');
+
+    const cancel = button('Cancel', () => { state.capture = null; return render(); });
+    cancel.setAttribute('data-cancel-capture', '');
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.append(confirm, cancel);
+    wrap.append(row);
+    return wrap;
+  }
+
   function fillSection(current: Settings): HTMLElement {
     const el = sectionEl('fill', 'Fill');
 
@@ -401,13 +500,17 @@ export async function createPanel({ doc: document, stores, bridge, now = () => n
       const suggestion = await serviceSuggestion();
       const service = state.confirmedService ?? (suggestion.kind === 'template' ? suggestion.service : null);
       const serviceOffering = state.confirmedOffering ?? (state.confirmedService ? null : template.serviceOffering ?? null);
+      const current = await stores.settings.get();
       state.rows = await runFill({
         resolution,
+        mode,
         requestor: state.requestor ?? EMPTY_REQUESTOR,
         template,
         service,
         serviceOffering,
-        settings: await stores.settings.get(),
+        steps: state.steps,
+        resolvedCommentHtml: current.resolvedCommentHtml ?? null,
+        settings: current,
         now: now(),
       }, {
         bridge,

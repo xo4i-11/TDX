@@ -135,3 +135,21 @@ test('a store write from one rendered view is visible to a fresh view over the s
   const storesB = createStores(area);
   assert.equal((await storesB.settings.get()).threshold, 0.8);
 });
+
+test('the captured resolved template can be cleared', async () => {
+  const { el, stores, doc } = await setup(async (s) => {
+    await s.settings.patch({ resolvedCommentHtml: '<p>{{steps}}</p>' });
+  });
+  const clear = el.querySelector('button[data-clear-resolved]');
+  assert.ok(clear, 'clear button missing');
+  click(doc, clear);
+  await new Promise((r) => setImmediate(r));
+  assert.equal((await stores.settings.get()).resolvedCommentHtml, null);
+});
+
+// Falsifiability: a Clear button shown with nothing captured would mislead the
+// technician into thinking a template is stored.
+test('nothing captured means no clear button', async () => {
+  const { el } = await setup();
+  assert.equal(el.querySelector('button[data-clear-resolved]'), null);
+});

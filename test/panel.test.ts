@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { JSDOM } from 'jsdom';
-import { loadFixture } from './helpers.ts';
+import { loadFixture, loadUpdateFixture } from './helpers.ts';
 import { createPanel } from '../src/ui/panel.ts';
 import { createStores, createMemoryArea } from '../src/data/stores.ts';
 import { formSignature } from '../src/core/signature.ts';
@@ -515,4 +515,63 @@ test('a detected UBITName is filled instead of the "Unknown" placeholder', async
   const ubit = doc.querySelector<HTMLInputElement>('#attribute2445');
   assert.ok(ubit, 'UBITName input missing from the fixture');
   assert.equal(ubit.value, 'duynghie');
+});
+
+const RESOLVED_CAPTURE = '<p>Your ticket has been resolved.</p><p><span style="color:red">what we tried</span></p>';
+
+test('the panel renders resolve sections on the update form', async () => {
+  const { $ } = await open(loadUpdateFixture());
+  assert.ok($('[data-section="steps"]'), 'steps section missing');
+  assert.ok($('button[data-capture-resolved]'), 'capture button missing');
+  assert.equal($('[data-section="service"]'), null, 'the service section belongs to the create form only');
+});
+
+/** Puts markup where CKEditor puts it: the editor iframe's body, which is what the real page shows. */
+function loadEditor(doc: Document, html: string): void {
+  const iframe = doc.querySelector<HTMLIFrameElement>('iframe');
+  const body = iframe?.contentDocument?.body;
+  if (body) {
+    body.innerHTML = html;
+    return;
+  }
+  const textarea = doc.querySelector<HTMLTextAreaElement>('#Comments_Content');
+  assert.ok(textarea, 'no editor to load in this fixture');
+  textarea.value = html;
+}
+
+test('capture rewrites the red block to a {{steps}} template and stores it', async () => {
+  const doc = loadUpdateFixture();
+  loadEditor(doc, RESOLVED_CAPTURE);
+
+  const { $, stores } = await open(doc);
+  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
+  await settle();
+  click(must($('button[data-confirm-capture]'), 'confirm button missing'), doc);
+  await settle();
+
+  const saved = (await stores.settings.get()).resolvedCommentHtml ?? '';
+  assert.match(saved, /\{\{steps\}\}/);
+  assert.equal(saved.includes('what we tried'), false);
+});
+
+// Falsifiability: without the guard an empty editor stores an empty template,
+// and every later fill writes a blank client-visible comment.
+test('capture refuses an empty editor instead of storing nothing', async () => {
+  const doc = loadUpdateFixture();
+  const { $, stores } = await open(doc);
+  click(must($('button[data-capture-resolved]'), 'capture button missing'), doc);
+  await settle();
+  assert.equal((await stores.settings.get()).resolvedCommentHtml ?? null, null);
+  assert.match(must($('[data-error]'), 'error line missing').textContent ?? '', /empty/i);
+});
+
+test('choosing a template pre-fills the steps box', async () => {
+  const doc = loadUpdateFixture();
+  const { $ } = await open(doc);
+  const template = must($<HTMLSelectElement>('select[name="template"]'), 'template select missing');
+  template.value = 'eduroam';
+  change(template, doc);
+  await settle();
+  const steps = must($<HTMLTextAreaElement>('textarea[name="steps"]'), 'steps box missing');
+  assert.match(steps.value, /CAT configuration tool/);
 });
